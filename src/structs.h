@@ -3,7 +3,7 @@ typedef enum{
     type_command_01,
     type_command_02,
     type_handshake,
-    type_no_msg_type,
+    type_no_msg_type, //*enum per dire esplicitamente errore
 }MsgType;
 
 typedef struct{
@@ -30,7 +30,7 @@ ROOT poi si rivede il dizionario aggiunge lui, e sistema my_master_id;
 typedef enum{
     type_hello,
     type_report_to_root,
-    type_no_handshake_type,
+    type_no_handshake_type, //*enum per dire esplicitamente errore
 }HandshakeType;
 typedef struct{
     HandshakeType type;

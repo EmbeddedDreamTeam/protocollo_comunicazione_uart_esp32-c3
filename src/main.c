@@ -137,7 +137,6 @@ void task_receive_uart(void *arg){
 
 
 //* _______________________________________UART SEND
-//! PROBLEMA QUI:
 void task_send_uart(void *arg){
 
   InfoUART* info_uart = (InfoUART*) arg;
@@ -175,7 +174,7 @@ void task_send_uart(void *arg){
 void task_execute_command_01(void *arg){
   while(1){
     Msg *msg = NULL;
-    xQueueReceive(h_queue_send_to_slave, &msg, portMAX_DELAY);
+    xQueueReceive(h_queue_command_01, &msg, portMAX_DELAY);
     printf("execute_command_01");
     vTaskDelay(pdMS_TO_TICKS(10000));
 
@@ -188,7 +187,7 @@ void task_execute_command_01(void *arg){
 void task_execute_command_02(void *arg){
   while(1){
     Msg *msg = NULL;
-    xQueueReceive(h_queue_send_to_slave, &msg, portMAX_DELAY);
+    xQueueReceive(h_queue_command_02, &msg, portMAX_DELAY);
     printf("execute_command_02");
     vTaskDelay(pdMS_TO_TICKS(9000));
 
@@ -266,21 +265,22 @@ void send_handshake_msg(int to_whom, HandshakeType handshake_type){
 }
 
 
-void handle_hello(){
-  Msg *msg = NULL;
-  xQueueReceive(h_queue_handshake, &msg, portMAX_DELAY);
-  if(msg->target_id == -1){
-    if(SLAVE_ID == -1){
-      SLAVE_ID = msg->payload.payload_handshake.my_id;
-      send_handshake_msg(SLAVE_ID, type_hello);
-    }else{
-      printf("ERRORE: IO ho già uno slave\n");
-    }
-  }
-}
+// void handle_hello(){
+//   Msg *msg = NULL;
+//   xQueueReceive(h_queue_handshake, &msg, portMAX_DELAY);
+//   if(msg->target_id == -1){
+//     if(SLAVE_ID == -1){
+//       SLAVE_ID = msg->payload.payload_handshake.my_id;
+//       send_handshake_msg(SLAVE_ID, type_hello);
+//     }else{
+//       printf("ERRORE: IO ho già uno slave\n");
+//     }
+//   }
+// }
 
 
 //TODO _______________________________________ SOLO MASTER - MAPPA NODI
+/*
 #define NODES_ARR_SIZE 10 
 
 typedef struct{
@@ -339,6 +339,7 @@ void task_handle_report(void *arg){ //!NON TESTATA
     free(msg);
   }
 }
+*/
 
 //* _______________________________________ MAIN e TEST
 
