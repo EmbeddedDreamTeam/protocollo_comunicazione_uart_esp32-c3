@@ -8,12 +8,15 @@
 
 #include "structs.h"
 
+//!DEVI PROVARE LA ROBA DEL MAGIK NUMBER
+
 //* _______________________________________ CONSTS e STRUCTS
 
-#define U_SLAVE_TX_PIN 10
-#define U_SLAVE_RX_PIN 9
-#define U_MASTER_TX_PIN 12
-#define U_MASTER_RX_PIN 11
+#define U_SLAVE_RX_PIN 9  //*ricevo dal MIO SLAVE
+#define U_SLAVE_TX_PIN 10 //*trasmetto al MIO SLAVE
+#define U_MASTER_RX_PIN 2  //*ricevo dal MIO MASTER
+#define U_MASTER_TX_PIN 3 //*trasmetto al MIO MASTER
+
 #define U_BUF_SIZE 1024 //i bit dei messaggi che si accodano prima di essere fisicamente trasmessi
 
 #define LED_GPIO 8
@@ -78,7 +81,7 @@ void print_msg_struct(Msg* msg){
       printf("num1: %d\n", msg->payload.payload_command_02.num1);
       printf("num2: %f\n\n", msg->payload.payload_command_02.num2);
   } else{
-    printf("type non riconosciuto\n");
+    printf("ERRORE: type non riconosciuto\n");
   }
   printf("\n\n");
 }
@@ -104,7 +107,9 @@ void task_receive_uart(void *arg){
   while (1){
     Msg *msg = malloc(sizeof(Msg)); //!RICEVE DEI BYTE, DEVE ALLOCARLI LUI NELL'HEAP
     int bytes_received = 0;
-
+    
+    //!EVITA DI ASCOLARE SE é -1 OBV
+    
     while(bytes_received < sizeof(Msg)){
       int n = uart_read_bytes(info_uart->select_uart, ((uint8_t*)msg)+bytes_received, sizeof(*msg)-bytes_received, portMAX_DELAY);
       bytes_received += n;
@@ -119,16 +124,22 @@ void task_receive_uart(void *arg){
       printf("SONO: %d, HO RICEVUTO DA: %s, il messggio E' PER ME (non verra' ritrasmesso):\n", SELF_ID, role);
       print_msg_struct(msg);
       sort_new_msg(msg);
-    }else{
-      int tp = (int)!(bool)info_uart->select_uart;
-      char* tpr = get_role_name(tp);
-      printf("SONO: %d, HO RICEVUTO DA: %s, il messaggio NON E' PER ME, verra' ritrasmesso a: %s :\n", SELF_ID, role, tpr);
+    }else{ //!CHECK PER NON AGGIUNGERE ALLA CODA UN MESSAGGIO DA INVIARE A UN NODO CHE NON C'é (NON DOVREBBE ESSERCI)
+      int uart_opposta = (int)!(bool)info_uart->select_uart;
+      char* tpr = get_role_name(uart_opposta);
+      printf("SONO: %d, HO RICEVUTO DA: %s, il messaggio NON E' PER ME: ", SELF_ID, role);
       print_msg_struct(msg);
-      xQueueSend(info_uart->select_queue, &msg, portMAX_DELAY);
+      if(!(((int)uart_opposta == (int)UART_NUM_1 && SLAVE_ID == -1) || ((int)uart_opposta == (int)UART_NUM_0 && MASTER_ID == -1))){
+        printf("verrà ritrasmesso a: %s\n", tpr);
+        xQueueSend(info_uart->select_queue, &msg, portMAX_DELAY);
+      }else{
+        printf("ERRORE: IL DESTINATARIO NON ESISTE\n");
+        free(msg);
+      }
     }
   }
 
-  printf("186 FR DI: %p \n", info_uart);
+  // printf("131 FR DI: %p \n", info_uart);
   free(info_uart);
 
   //-// non faccio il free del messagio qui, lo fa il consumer
@@ -149,6 +160,11 @@ void task_send_uart(void *arg){
 
     char* role = get_role_name(info_uart->select_uart);
     printf("SONO: %d, INVIO A: %s, IL SEGUENTE MESSAGGIO:\n", SELF_ID, role);
+
+    if(SELF_ID == 1){ //! ----------
+      printf("===UART, %d\n", info_uart->select_uart);
+    }
+
     print_msg_struct(msg);
 
     size_t to_send = sizeof(*msg);
@@ -162,10 +178,10 @@ void task_send_uart(void *arg){
             vTaskDelay(pdMS_TO_TICKS(10));
         }
     }
-    printf("221 FR DI: %p \n", msg);
+    // printf("165 FR DI: %p \n", msg);
     free(msg);
   }
-  printf("224 FR DI: %p \n", info_uart);
+  // printf("168 FR DI: %p \n", info_uart);
   free(info_uart);
 }
 
@@ -178,7 +194,7 @@ void task_execute_command_01(void *arg){
     printf("execute_command_01");
     vTaskDelay(pdMS_TO_TICKS(10000));
 
-    printf("237 FR DI: %p \n", msg);
+    // printf("181 FR DI: %p \n", msg);
     free(msg);
   }
 }
@@ -191,7 +207,7 @@ void task_execute_command_02(void *arg){
     printf("execute_command_02");
     vTaskDelay(pdMS_TO_TICKS(9000));
 
-    printf("250 FR DI: %p \n", msg);
+    // printf("194 FR DI: %p \n", msg);
     free(msg);
   }
 }
@@ -228,6 +244,11 @@ void init_uart(uart_port_t uart_num, int rx_pin, int tx_pin) {
     uart_param_config(uart_num, &uart_config);
     // Assegna i pin tramite la Matrix
     uart_set_pin(uart_num, tx_pin, rx_pin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    gpio_set_pull_mode(rx_pin, GPIO_PULLUP_ONLY); //!FORZA I PIN A RIMANERE A 3.3V QUANDO NON RICEVONO NIENTE
+
+    if(SELF_ID == 1){ //!------
+      printf("\nUART: %d, tx_pin: %d, rx_pin: %d\n", uart_num, tx_pin, rx_pin);
+    }
 }
 
 
@@ -344,19 +365,18 @@ void task_handle_report(void *arg){ //!NON TESTATA
 //* _______________________________________ MAIN e TEST
 
 void test(){
-  //messaggio fa il giro 1 -> 2 -> 1
-  //sono reciprocamente sia master che slave di se stessi
+  //messaggio 0 -> 1 -> 2
   
   Msg* prova = malloc(sizeof(Msg));
-  prova->sender_id = 1;
-  prova->target_id = 1;
+  prova->sender_id = 0;
+  prova->target_id = 2;
   prova->type = type_command_01;
   char* s1 = prova->payload.payload_command_01.str1;
   char* s2 = prova->payload.payload_command_01.str2;
   strcpy(s1, "ciao1");
   strcpy(s2, "ciao2");
 
-  printf("\nciao: %p\n", prova);
+  printf("\nmetto in h_queue_send_to_slave: %p\n", prova);
 
   xQueueSend(h_queue_send_to_slave, &prova, portMAX_DELAY); 
 }
@@ -404,22 +424,28 @@ void app_main(void){
   // xTaskCreate(task_handle_report, "task_handle_report", 5000, NULL, 1, NULL); //!UNTESTED!!!
 
 
-  //*test
-  SELF_ID = 2;
+  //*test, più sono lontani dalla root più lampeggiano veloce
+  //!QUI COGLIONE
+  SELF_ID = 1; 
 
-  if(SELF_ID == 1){ 
-    L_DELAY = 2000;
-    MASTER_ID = 2;
-    SLAVE_ID = 2;
+  if(SELF_ID == 0){ 
+    L_DELAY = 3000;
+    MASTER_ID = -1;
+    SLAVE_ID = 1;
+
+  }else if(SELF_ID == 1){
+    L_DELAY = 600;
+    MASTER_ID = 0;
+    SLAVE_ID = -1; //!ATTENTO COGLIONE
 
   }else if(SELF_ID == 2){
-    L_DELAY = 200;
-    MASTER_ID = 1;
-    SLAVE_ID = 1;
+    L_DELAY = 100;
+    MASTER_ID = 2;
+    SLAVE_ID = -1;
   }
 
-  while(SELF_ID == 1){
+  while(SELF_ID == 0){
     test();
-    vTaskDelay(pdMS_TO_TICKS(5000));
+    vTaskDelay(pdMS_TO_TICKS(10000));
   }
 }
