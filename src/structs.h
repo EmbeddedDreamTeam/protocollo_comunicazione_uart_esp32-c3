@@ -1,3 +1,7 @@
+#include <stdint.h>
+#define HEADER_BYTE = 0xAA
+#define FOOTER_4_BYTES = 0xCAFEBABE
+
 
 typedef enum{
     type_command_01,
@@ -48,11 +52,14 @@ typedef union{
 }Payload;
 
 typedef struct{
+    uint8_t header;
     int sender_id;
     int target_id;
     MsgType type;
 
     Payload payload;
+
+    uint32_t footer;
 }Msg;
 
 

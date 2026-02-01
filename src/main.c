@@ -26,6 +26,10 @@
 #define UNKNOWN_ID -1
 #define INVALID_ID -2 
 
+//header e footer di ogni messaggio
+#define HEADER_BYTE = 0xAA
+#define FOOTER_4_BYTES = 0xCAFEBABE
+
 int MASTER_ID = 0; //li ho hardcodati nel mockup c'è un protocollo di hello che forse funziona
 int SELF_ID = 1;
 int SLAVE_ID = 2;
