@@ -1,6 +1,6 @@
-#include <stdint.h>
-#define HEADER_BYTE = 0xAA
-#define FOOTER_4_BYTES = 0xCAFEBABE
+#include <stdint.h>      // Per uint8_t, uint32_t
+#include <stdbool.h>     // Per il tipo bool
+#include "driver/uart.h" // Per uart_read_bytes e le funzioni ESP-IDF
 
 
 typedef enum{
@@ -51,7 +51,7 @@ typedef union{
     PayloadHandshake payload_handshake;
 }Payload;
 
-typedef struct{
+typedef struct __attribute__((packed)){
     uint8_t header;
     int sender_id;
     int target_id;

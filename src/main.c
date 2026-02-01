@@ -12,10 +12,14 @@
 
 //* _______________________________________ CONSTS e STRUCTS
 
-#define U_SLAVE_RX_PIN 9  //*ricevo dal MIO SLAVE
-#define U_SLAVE_TX_PIN 10 //*trasmetto al MIO SLAVE
-#define U_MASTER_RX_PIN 2  //*ricevo dal MIO MASTER
-#define U_MASTER_TX_PIN 3 //*trasmetto al MIO MASTER
+#define U_WITH_MASTER 0
+#define U_WITH_SLAVE 1
+
+#define FROM_MASTER_RX 9
+#define TO_MASTER_TX 10
+#define FROM_SLAVE_RX 2
+#define TO_SLAVE_TX 3
+
 
 #define U_BUF_SIZE 1024 //i bit dei messaggi che si accodano prima di essere fisicamente trasmessi
 
@@ -27,8 +31,8 @@
 #define INVALID_ID -2 
 
 //header e footer di ogni messaggio
-#define HEADER_BYTE = 0xAA
-#define FOOTER_4_BYTES = 0xCAFEBABE
+#define HEADER_BYTE 0xAA
+#define FOOTER_4_BYTES 0xCAFEBABE
 
 int MASTER_ID = 0; //li ho hardcodati nel mockup c'è un protocollo di hello che forse funziona
 int SELF_ID = 1;
@@ -47,10 +51,7 @@ QueueHandle_t h_queue_send_to_slave;
 QueueHandle_t h_queue_send_to_master;
 
 typedef struct{
-  enum{
-    U_MASTER = UART_NUM_0,
-    U_SLAVE = UART_NUM_1,
-  }select_uart;
+  uart_port_t select_uart; 
   QueueHandle_t select_queue;
 } InfoUART;
 
@@ -73,10 +74,14 @@ const char* get_role_name(int role) {
 
 //* _______________________________________UART RECEIVE
 void print_msg_struct(Msg* msg){
+  printf("PRINTING STRUCT MESSAGE:\n");
   printf("HEAP PT: %p \n", msg);
   printf("Sender: %d\n", msg->sender_id);
   printf("Target: %d\n", msg->target_id);
   printf("Type: %d\n", msg->type);
+  printf("Header: %d\n", msg->header);
+  printf("Footer: %ld\n", msg->footer);
+
 
   if (msg->type == type_command_01) {
       printf("str1: %s\n", msg->payload.payload_command_01.str1);
@@ -87,7 +92,7 @@ void print_msg_struct(Msg* msg){
   } else{
     printf("ERRORE: type non riconosciuto\n");
   }
-  printf("\n\n");
+  printf("\n");
 }
 
 
@@ -110,44 +115,60 @@ void task_receive_uart(void *arg){
 
   while (1){
     Msg *msg = malloc(sizeof(Msg)); //!RICEVE DEI BYTE, DEVE ALLOCARLI LUI NELL'HEAP
-    int bytes_received = 0;
-    
-    //!EVITA DI ASCOLARE SE é -1 OBV
-    
-    while(bytes_received < sizeof(Msg)){
-      int n = uart_read_bytes(info_uart->select_uart, ((uint8_t*)msg)+bytes_received, sizeof(*msg)-bytes_received, portMAX_DELAY);
-      bytes_received += n;
+
+
+    bool message_ok = false;
+    while (!message_ok){
+      message_ok = false;
+      uart_read_bytes(info_uart->select_uart, (uint8_t*)msg, 1, portMAX_DELAY);
+
+      // if(SELF_ID == 1){
+      //   printf("STO LEGGENDO QUALCOSA\n");
+      // }
+
+      if(msg->header != HEADER_BYTE){
+        // vTaskDelay(1);
+        continue; //così rilegge da subito
+      }
+      uart_read_bytes(info_uart->select_uart, (uint8_t*)msg+1, sizeof(Msg)-1, portMAX_DELAY);
+      if(msg->footer == FOOTER_4_BYTES){
+        message_ok = true;
+      }
     }
-    bytes_received = 0;
 
-    // printf("puntatore messaggio: %p\n", msg);
 
+
+    printf("\n====================\n");
+    print_msg_struct(msg);
 
     char* role = get_role_name(info_uart->select_uart);
     if(msg->target_id == SELF_ID){
       printf("SONO: %d, HO RICEVUTO DA: %s, il messggio E' PER ME (non verra' ritrasmesso):\n", SELF_ID, role);
-      print_msg_struct(msg);
       sort_new_msg(msg);
+
     }else{ //!CHECK PER NON AGGIUNGERE ALLA CODA UN MESSAGGIO DA INVIARE A UN NODO CHE NON C'é (NON DOVREBBE ESSERCI)
       int uart_opposta = (int)!(bool)info_uart->select_uart;
       char* tpr = get_role_name(uart_opposta);
-      printf("SONO: %d, HO RICEVUTO DA: %s, il messaggio NON E' PER ME: ", SELF_ID, role);
-      print_msg_struct(msg);
+
+      printf("SONO: %d, HO RICEVUTO DA: %s, il messaggio NON E' PER ME\n", SELF_ID, role);
       if(!(((int)uart_opposta == (int)UART_NUM_1 && SLAVE_ID == -1) || ((int)uart_opposta == (int)UART_NUM_0 && MASTER_ID == -1))){
-        printf("verrà ritrasmesso a: %s\n", tpr);
+        printf("VERRA' RITRASMESSO A: %s\n", tpr);
         xQueueSend(info_uart->select_queue, &msg, portMAX_DELAY);
+
       }else{
         printf("ERRORE: IL DESTINATARIO NON ESISTE\n");
         free(msg);
+
       }
-    }
+    printf("\n====================\n");
+    fflush(stdout);
+  }
   }
 
   // printf("131 FR DI: %p \n", info_uart);
   free(info_uart);
-
-  //-// non faccio il free del messagio qui, lo fa il consumer
 }
+
 
 
 
@@ -162,27 +183,18 @@ void task_send_uart(void *arg){
     Msg *msg = NULL;
     xQueueReceive(info_uart->select_queue, &msg, portMAX_DELAY);
 
+    printf("\n====================\n");
     char* role = get_role_name(info_uart->select_uart);
     printf("SONO: %d, INVIO A: %s, IL SEGUENTE MESSAGGIO:\n", SELF_ID, role);
 
-    if(SELF_ID == 1){ //! ----------
-      printf("===UART, %d\n", info_uart->select_uart);
-    }
+    // if(SELF_ID == 1){ //! ----------
+    //   printf("===UART, %d\n", info_uart->select_uart);
+    // }
 
     print_msg_struct(msg);
+    uart_write_bytes(info_uart->select_uart, (const void*)msg, sizeof(Msg));
+    printf("====================\n");
 
-    size_t to_send = sizeof(*msg);
-    size_t sent = 0;
-    while (sent < to_send) {
-        int n = uart_write_bytes(info_uart->select_uart, (const char *)msg + sent, to_send - sent);
-        if (n > 0) {
-            sent += (size_t)n;
-        } else {
-            // piccolo delay se il driver non scrive nulla
-            vTaskDelay(pdMS_TO_TICKS(10));
-        }
-    }
-    // printf("165 FR DI: %p \n", msg);
     free(msg);
   }
   // printf("168 FR DI: %p \n", info_uart);
@@ -235,7 +247,7 @@ void task_led(void *info){
 
 void init_uart(uart_port_t uart_num, int rx_pin, int tx_pin) {
     const uart_config_t uart_config = {
-        .baud_rate = 9600,
+        .baud_rate = 1200,
         .data_bits = UART_DATA_8_BITS,
         .parity = UART_PARITY_DISABLE,
         .stop_bits = UART_STOP_BITS_1,
@@ -368,16 +380,18 @@ void task_handle_report(void *arg){ //!NON TESTATA
 
 //* _______________________________________ MAIN e TEST
 
-void test(){
+void test(int num){
   //messaggio 0 -> 1 -> 2
   
   Msg* prova = malloc(sizeof(Msg));
+  prova->header = HEADER_BYTE;
+  prova->footer = FOOTER_4_BYTES;
   prova->sender_id = 0;
   prova->target_id = 2;
   prova->type = type_command_01;
   char* s1 = prova->payload.payload_command_01.str1;
   char* s2 = prova->payload.payload_command_01.str2;
-  strcpy(s1, "ciao1");
+  sprintf(s1, "MGSN: %d", num);
   strcpy(s2, "ciao2");
 
   printf("\nmetto in h_queue_send_to_slave: %p\n", prova);
@@ -397,30 +411,30 @@ void app_main(void){
   h_queue_send_to_master = xQueueCreate(10, sizeof(Msg*));
 
   //*inizializzo le UART
-  init_uart(U_MASTER, U_MASTER_RX_PIN, U_MASTER_TX_PIN);
-  init_uart(U_SLAVE, U_SLAVE_RX_PIN, U_SLAVE_TX_PIN);
+  init_uart(U_WITH_SLAVE, FROM_SLAVE_RX, TO_SLAVE_TX);
+  init_uart(U_WITH_MASTER, FROM_MASTER_RX, TO_MASTER_TX);
 
   //*creo le task
   xTaskCreate(task_led, "task_led", 2048, NULL, 1, &h_task_led);
 
   InfoUART* info_receive_master = malloc(sizeof(InfoUART)); 
-  info_receive_master->select_uart = U_MASTER;
+  info_receive_master->select_uart = U_WITH_MASTER;
   info_receive_master->select_queue = h_queue_send_to_slave;//accoda a coda slave
   xTaskCreate(task_receive_uart, "task_receive_uart_master", 5000, (void*)info_receive_master, 1, NULL);
 
   InfoUART* info_receive_slave = malloc(sizeof(InfoUART));
-  info_receive_slave->select_uart = U_SLAVE;
+  info_receive_slave->select_uart = U_WITH_SLAVE;
   info_receive_slave->select_queue = h_queue_send_to_master;//accoda a coda master
   xTaskCreate(task_receive_uart, "task_receive_uart_slave", 5000, (void*)info_receive_slave, 1, NULL);
 
   InfoUART* info_send_master = malloc(sizeof(InfoUART)); 
-  info_send_master->select_uart = U_MASTER;
+  info_send_master->select_uart = U_WITH_MASTER;
   info_send_master->select_queue = h_queue_send_to_master;//predo da coda master e invio a master
   //!problema qui
   xTaskCreate(task_send_uart, "task_send_uart_master", 5000, (void*)info_send_master, 1, NULL);
 
   InfoUART* info_send_slave = malloc(sizeof(InfoUART)); 
-  info_send_slave->select_uart = U_SLAVE;
+  info_send_slave->select_uart = U_WITH_SLAVE;
   info_send_slave->select_queue = h_queue_send_to_slave;//predo da coda slave e invio a slave
   xTaskCreate(task_send_uart, "task_send_uart_slave", 5000, (void*)info_send_slave, 1, NULL);
 
@@ -430,7 +444,7 @@ void app_main(void){
 
   //*test, più sono lontani dalla root più lampeggiano veloce
   //!QUI COGLIONE
-  SELF_ID = 1; 
+  SELF_ID = 2; 
 
   if(SELF_ID == 0){ 
     L_DELAY = 3000;
@@ -440,7 +454,7 @@ void app_main(void){
   }else if(SELF_ID == 1){
     L_DELAY = 600;
     MASTER_ID = 0;
-    SLAVE_ID = -1; //!ATTENTO COGLIONE
+    SLAVE_ID = 2; //!ATTENTO COGLIONE
 
   }else if(SELF_ID == 2){
     L_DELAY = 100;
@@ -448,8 +462,10 @@ void app_main(void){
     SLAVE_ID = -1;
   }
 
+  int ct =0;
   while(SELF_ID == 0){
-    test();
+    test(ct);
+    ct++;
     vTaskDelay(pdMS_TO_TICKS(10000));
   }
 }
