@@ -8,7 +8,7 @@
 
 #include "structs.h"
 
-//!DEVI PROVARE LA ROBA DEL MAGIK NUMBER
+
 
 //* _______________________________________ CONSTS e STRUCTS
 
@@ -269,51 +269,59 @@ void init_uart(uart_port_t uart_num, int rx_pin, int tx_pin) {
 
 
 //* _______________________________________ GESTIONE DI HANDSHAKE
-void send_handshake_msg(int to_whom, HandshakeType handshake_type){
+
+
+/*
+Il mio slave si è già presentato, io gli rispondo presentandomi
+*/
+void send_handshake_type_hello_to_slave(){
   Msg* hello_msg = malloc(sizeof(Msg));
   hello_msg->sender_id = SELF_ID;
-  hello_msg->target_id = to_whom; //-1 = IDK
+  hello_msg->target_id = SLAVE_ID;
   hello_msg->type = type_handshake;
-  hello_msg->payload.payload_handshake.type = handshake_type;
+  hello_msg->payload.payload_handshake.type = type_hello_to_slave;
   hello_msg->payload.payload_handshake.my_id = SELF_ID;
   hello_msg->payload.payload_handshake.my_master_id = MASTER_ID;
   hello_msg->payload.payload_handshake.my_master_id = SLAVE_ID;
 
-  if(handshake_type == type_hello){
-    if(to_whom == -1 || to_whom == MASTER_ID){
-      xQueueSend(h_queue_send_to_master, &hello_msg, portMAX_DELAY);
-    }else if(to_whom == SLAVE_ID){
-      xQueueSend(h_queue_send_to_slave, &hello_msg, portMAX_DELAY);
-    }else{
-      printf("ERRORE: type_hello è solo valido tra nodi adiacenti\n");
-    }
-
-  }else if(handshake_type == type_report_to_root){
-    if(to_whom == 0){
-      xQueueSend(h_queue_send_to_master, &hello_msg, portMAX_DELAY);
-    }else{
-      printf("ERRORE: type_report_to_root è mandato unicamente a ROOT\n");
-    }
-
-  }else{
-    printf("ERRORE: handshake_type: %i , non esiste\n", handshake_type);
-  }
-  
+  xQueueSend(h_queue_send_to_slave, &hello_msg, portMAX_DELAY);
 }
 
 
-// void handle_hello(){
-//   Msg *msg = NULL;
-//   xQueueReceive(h_queue_handshake, &msg, portMAX_DELAY);
-//   if(msg->target_id == -1){
-//     if(SLAVE_ID == -1){
-//       SLAVE_ID = msg->payload.payload_handshake.my_id;
-//       send_handshake_msg(SLAVE_ID, type_hello);
-//     }else{
-//       printf("ERRORE: IO ho già uno slave\n");
-//     }
-//   }
-// }
+/*
+Il mio slave si è già presentato, io devo dire a ROOT che si aggiunto un nodo
+*/
+void send_handshake_type_report_to_root(){
+  if(SELF_ID == ROOT_ID){
+    return;
+  }
+  
+  Msg* hello_msg = malloc(sizeof(Msg));
+  hello_msg->sender_id = SELF_ID;
+  hello_msg->target_id = ROOT_ID;
+  hello_msg->type = type_handshake;
+  hello_msg->payload.payload_handshake.type = type_report_to_root;
+  hello_msg->payload.payload_handshake.my_id = SELF_ID;
+  hello_msg->payload.payload_handshake.my_master_id = MASTER_ID;
+  hello_msg->payload.payload_handshake.my_master_id = SLAVE_ID;
+
+  xQueueSend(h_queue_send_to_master, &hello_msg, portMAX_DELAY);
+}
+
+
+/*
+E' una task che gestisce la ricezione dei messaggi di tipo HANDSHAKE
+La struttura è tipica di tutti gli hanler di messaggi, bloccati finche non trovano qualcosa sulla loro coda;
+*/
+void handle_handshake(){
+  Msg *msg = NULL;
+  xQueueReceive(h_queue_handshake, &msg, portMAX_DELAY);
+  if(msg->payload.payload_handshake.type == type_hello_to_slave && msg->target_id == -1 && SLAVE_ID == -1){
+    SLAVE_ID = msg->payload.payload_handshake.my_id;
+    send_handshake_type_hello_to_slave();
+    send_handshake_type_report_to_root();
+  }
+}
 
 
 //TODO _______________________________________ SOLO MASTER - MAPPA NODI
