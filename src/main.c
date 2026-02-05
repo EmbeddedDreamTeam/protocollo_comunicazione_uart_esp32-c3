@@ -279,7 +279,7 @@ void send_handshake_type_hello_to_slave(){
   hello_msg->sender_id = SELF_ID;
   hello_msg->target_id = SLAVE_ID;
   hello_msg->type = type_handshake;
-  hello_msg->payload.payload_handshake.type = type_hello_to_slave;
+  hello_msg->payload.payload_handshake.type = type_hello;
   hello_msg->payload.payload_handshake.my_id = SELF_ID;
   hello_msg->payload.payload_handshake.my_master_id = MASTER_ID;
   hello_msg->payload.payload_handshake.my_master_id = SLAVE_ID;
@@ -287,6 +287,9 @@ void send_handshake_type_hello_to_slave(){
   xQueueSend(h_queue_send_to_slave, &hello_msg, portMAX_DELAY);
 }
 
+
+//! devi distinguere se sei il master o lo slave! QUI ASSUMI SOLO IL MASTER
+//! IL problema è che ROOT per ricostruire vuole solo messaggi completi
 
 /*
 Il mio slave si è già presentato, io devo dire a ROOT che si aggiunto un nodo
@@ -316,7 +319,7 @@ La struttura è tipica di tutti gli hanler di messaggi, bloccati finche non trov
 void handle_handshake(){
   Msg *msg = NULL;
   xQueueReceive(h_queue_handshake, &msg, portMAX_DELAY);
-  if(msg->payload.payload_handshake.type == type_hello_to_slave && msg->target_id == -1 && SLAVE_ID == -1){
+  if(msg->payload.payload_handshake.type == type_hello && msg->target_id == -1 && SLAVE_ID == -1){
     SLAVE_ID = msg->payload.payload_handshake.my_id;
     send_handshake_type_hello_to_slave();
     send_handshake_type_report_to_root();

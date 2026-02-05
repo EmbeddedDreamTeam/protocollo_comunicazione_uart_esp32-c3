@@ -32,7 +32,8 @@ ROOT poi si rivede il dizionario aggiunge lui, e sistema my_master_id;
 */
 
 typedef enum{
-    type_hello_to_slave,
+    type_hello,
+    type_hello_ACK,
     type_report_to_root,
     type_no_handshake_type, //*enum per dire esplicitamente errore
 }HandshakeType;
@@ -78,7 +79,7 @@ const char* enum_to_str(MsgType msg_type, HandshakeType handshake_type){
 
     }else if(handshake_type != type_no_handshake_type){
         switch (handshake_type){
-        case type_hello_to_slave:
+        case type_hello:
             return "type_hello";
         case type_report_to_root:
             return "type_report_to_root";
