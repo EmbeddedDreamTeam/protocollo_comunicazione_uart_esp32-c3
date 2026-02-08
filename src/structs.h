@@ -33,17 +33,28 @@ ROOT poi si rivede il dizionario aggiunge lui, e sistema my_master_id;
 
 typedef enum{
     type_hello,
-    type_hello_ACK,
+    type_ACK_hello,
     type_report_to_root,
     type_no_handshake_type, //*enum per dire esplicitamente errore
 }HandshakeType;
+
 typedef struct{
     HandshakeType type;
 
-    int my_id;
-    int my_slave_id;
-    int my_master_id;
-}PayloadHandshake;
+    union {
+        struct {
+            int my_slave_id;
+            int my_id;
+            int my_master_id;
+        } all_info;
+
+        struct {
+            int my_id;
+        } id_only;
+    }data;
+
+} PayloadHandshake;
+
 
 //con le union alloca sempre i byte x il messaggio + lungo
 typedef union{ 

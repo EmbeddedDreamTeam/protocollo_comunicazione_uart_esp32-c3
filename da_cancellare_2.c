@@ -17,8 +17,6 @@ int ordered_chain_size = 0;
 node buffer[MAX_NODES];
 int buffer_size = 0;
 
-int expected_next_id = 0;
-
 
 void get_node_info(node* n, char* str_info, int str_info_size){
     snprintf(str_info, str_info_size, " {%d, %d, %d},", n->master_id, n->id, n->slave_id);

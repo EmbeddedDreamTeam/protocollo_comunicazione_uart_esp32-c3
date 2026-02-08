@@ -7,7 +7,7 @@
 #include <string.h>
 
 #include "structs.h"
-
+#include "esp_task_wdt.h"
 
 
 //* _______________________________________ CONSTS e STRUCTS
@@ -34,9 +34,9 @@
 #define HEADER_BYTE 0xAA
 #define FOOTER_4_BYTES 0xCAFEBABE
 
-int MASTER_ID = 0; //li ho hardcodati nel mockup c'è un protocollo di hello che forse funziona
-int SELF_ID = 1;
-int SLAVE_ID = 2;
+int MASTER_ID = UNKNOWN_ID; //li ho hardcodati nel mockup c'è un protocollo di hello che forse funziona
+int SELF_ID = UNKNOWN_ID;
+int SLAVE_ID = UNKNOWN_ID;
 
 //handles:
 TaskHandle_t h_task_led;
@@ -78,18 +78,27 @@ void print_msg_struct(Msg* msg){
   printf("HEAP PT: %p \n", msg);
   printf("Sender: %d\n", msg->sender_id);
   printf("Target: %d\n", msg->target_id);
-  printf("Type: %d\n", msg->type);
+  printf("Type [0:type_command_01, 1:type_command_02, 2:type_handshake, 3:type_no_msg_type]: %d\n", msg->type);
   printf("Header: %d\n", msg->header);
   printf("Footer: %ld\n", msg->footer);
 
 
   if (msg->type == type_command_01) {
-      printf("str1: %s\n", msg->payload.payload_command_01.str1);
-      printf("str2: %s\n", msg->payload.payload_command_01.str2);
+    printf("str1: %s\n", msg->payload.payload_command_01.str1);
+    printf("str2: %s\n", msg->payload.payload_command_01.str2);
   } else if (msg->type == type_command_02) {
-      printf("num1: %d\n", msg->payload.payload_command_02.num1);
-      printf("num2: %f\n\n", msg->payload.payload_command_02.num2);
-  } else{
+    printf("num1: %d\n", msg->payload.payload_command_02.num1);
+    printf("num2: %f\n\n", msg->payload.payload_command_02.num2);
+  } else if (msg->type == type_handshake) {
+    printf("Type [0:type_hello, 1:type_ACK_hello, 2:type_report_to_root, 3:type_no_handshake_type]: %d\n", msg->payload.payload_handshake.type);
+    if(msg->payload.payload_handshake.type == type_hello || msg->payload.payload_handshake.type == type_ACK_hello){
+      printf("my_id: %d\n\n", msg->payload.payload_handshake.data.id_only.my_id);
+    }else if(msg->payload.payload_handshake.type == type_report_to_root){
+      printf("my_slave_id: %d\n\n", msg->payload.payload_handshake.data.all_info.my_slave_id);
+      printf("my_id: %d\n\n", msg->payload.payload_handshake.data.all_info.my_id);
+      printf("my_master_id: %d\n\n", msg->payload.payload_handshake.data.all_info.my_master_id);
+    }
+  }else{
     printf("ERRORE: type non riconosciuto\n");
   }
   printf("\n");
@@ -136,15 +145,13 @@ void task_receive_uart(void *arg){
       }
     }
 
-
-
     printf("\n====================\n");
-    print_msg_struct(msg);
-
+    
     char* role = get_role_name(info_uart->select_uart);
-    if(msg->target_id == SELF_ID){
+    if(msg->target_id == SELF_ID || msg->target_id == -1){
       printf("SONO: %d, HO RICEVUTO DA: %s, il messggio E' PER ME (non verra' ritrasmesso):\n", SELF_ID, role);
-      sort_new_msg(msg);
+      print_msg_struct(msg);
+      sort_new_msg(msg); //? il free() verrà fatto dalla task handelr specifica
 
     }else{ //!CHECK PER NON AGGIUNGERE ALLA CODA UN MESSAGGIO DA INVIARE A UN NODO CHE NON C'é (NON DOVREBBE ESSERCI)
       int uart_opposta = (int)!(bool)info_uart->select_uart;
@@ -153,11 +160,13 @@ void task_receive_uart(void *arg){
       printf("SONO: %d, HO RICEVUTO DA: %s, il messaggio NON E' PER ME\n", SELF_ID, role);
       if(!(((int)uart_opposta == (int)UART_NUM_1 && SLAVE_ID == -1) || ((int)uart_opposta == (int)UART_NUM_0 && MASTER_ID == -1))){
         printf("VERRA' RITRASMESSO A: %s\n", tpr);
-        xQueueSend(info_uart->select_queue, &msg, portMAX_DELAY);
+        print_msg_struct(msg);
+        xQueueSend(info_uart->select_queue, &msg, portMAX_DELAY); //? il free viene fatto da task_send_uart
 
       }else{
         printf("ERRORE: IL DESTINATARIO NON ESISTE\n");
-        free(msg);
+        print_msg_struct(msg);
+        free(msg); //? il free è qui
 
       }
     printf("\n====================\n");
@@ -186,12 +195,12 @@ void task_send_uart(void *arg){
     printf("\n====================\n");
     char* role = get_role_name(info_uart->select_uart);
     printf("SONO: %d, INVIO A: %s, IL SEGUENTE MESSAGGIO:\n", SELF_ID, role);
+    print_msg_struct(msg);
 
     // if(SELF_ID == 1){ //! ----------
     //   printf("===UART, %d\n", info_uart->select_uart);
     // }
 
-    print_msg_struct(msg);
     uart_write_bytes(info_uart->select_uart, (const void*)msg, sizeof(Msg));
     printf("====================\n");
 
@@ -270,43 +279,49 @@ void init_uart(uart_port_t uart_num, int rx_pin, int tx_pin) {
 
 //* _______________________________________ GESTIONE DI HANDSHAKE
 
+bool hello_msg_from_slave_recived = false;
+bool hello_msg_from_master_recived = false;
+bool report_msg_to_root_sent = false;
 
 /*
-Il mio slave si è già presentato, io gli rispondo presentandomi
+Il mio slave si è già presentato => io gli rispondo presentandomi
 */
 void send_handshake_type_hello_to_slave(){
   Msg* hello_msg = malloc(sizeof(Msg));
   hello_msg->sender_id = SELF_ID;
   hello_msg->target_id = SLAVE_ID;
   hello_msg->type = type_handshake;
-  hello_msg->payload.payload_handshake.type = type_hello;
-  hello_msg->payload.payload_handshake.my_id = SELF_ID;
-  hello_msg->payload.payload_handshake.my_master_id = MASTER_ID;
-  hello_msg->payload.payload_handshake.my_master_id = SLAVE_ID;
+  hello_msg->payload.payload_handshake.type = type_ACK_hello;
+  hello_msg->payload.payload_handshake.data.id_only.my_id = SELF_ID;
+  hello_msg->header = HEADER_BYTE;
+  hello_msg->footer = FOOTER_4_BYTES;
+
 
   xQueueSend(h_queue_send_to_slave, &hello_msg, portMAX_DELAY);
+  printf("DID I SEND HELLO?\n");
 }
 
 
-//! devi distinguere se sei il master o lo slave! QUI ASSUMI SOLO IL MASTER
-//! IL problema è che ROOT per ricostruire vuole solo messaggi completi
-
 /*
-Il mio slave si è già presentato, io devo dire a ROOT che si aggiunto un nodo
+Il mio slave si è già presentato E il mio master mi ha già risposto => io devo dire a ROOT che si aggiunto un nodo
 */
 void send_handshake_type_report_to_root(){
   if(SELF_ID == ROOT_ID){
-    return;
+    vTaskDelete(NULL);
   }
   
   Msg* hello_msg = malloc(sizeof(Msg));
   hello_msg->sender_id = SELF_ID;
   hello_msg->target_id = ROOT_ID;
   hello_msg->type = type_handshake;
+
   hello_msg->payload.payload_handshake.type = type_report_to_root;
-  hello_msg->payload.payload_handshake.my_id = SELF_ID;
-  hello_msg->payload.payload_handshake.my_master_id = MASTER_ID;
-  hello_msg->payload.payload_handshake.my_master_id = SLAVE_ID;
+  hello_msg->payload.payload_handshake.data.all_info.my_id = SELF_ID;
+  hello_msg->payload.payload_handshake.data.all_info.my_slave_id = SLAVE_ID;
+  hello_msg->payload.payload_handshake.data.all_info.my_master_id = MASTER_ID;
+
+  hello_msg->header = HEADER_BYTE;
+  hello_msg->footer = FOOTER_4_BYTES;
 
   xQueueSend(h_queue_send_to_master, &hello_msg, portMAX_DELAY);
 }
@@ -314,80 +329,82 @@ void send_handshake_type_report_to_root(){
 
 /*
 E' una task che gestisce la ricezione dei messaggi di tipo HANDSHAKE
-La struttura è tipica di tutti gli hanler di messaggi, bloccati finche non trovano qualcosa sulla loro coda;
+La struttura è tipica di tutti gli handler di messaggi, bloccati finche non trovano qualcosa sulla loro coda;
 */
-void handle_handshake(){
+void task_handle_handshake(){
+  while(1){
   Msg *msg = NULL;
-  xQueueReceive(h_queue_handshake, &msg, portMAX_DELAY);
-  if(msg->payload.payload_handshake.type == type_hello && msg->target_id == -1 && SLAVE_ID == -1){
-    SLAVE_ID = msg->payload.payload_handshake.my_id;
-    send_handshake_type_hello_to_slave();
-    send_handshake_type_report_to_root();
+  xQueuePeek(h_queue_handshake, &msg, portMAX_DELAY);
+
+    if(msg->payload.payload_handshake.type == type_hello && SLAVE_ID == -1){
+      if(hello_msg_from_slave_recived){
+        printf("ERRORE: E' ARRIVATO UN >1'nt HELLO DA SLAVE\n");
+      }
+      xQueueReceive(h_queue_handshake, &msg, 0);
+      SLAVE_ID = msg->payload.payload_handshake.data.id_only.my_id;
+      hello_msg_from_slave_recived = true;
+      send_handshake_type_hello_to_slave();
+      free(msg);
+
+    } else if(msg->payload.payload_handshake.type == type_ACK_hello && MASTER_ID == -1){
+      if(hello_msg_from_master_recived){
+        printf("ERRORE: E' ARRIVATO UN >1'nt ACK_HELLO DA MASTER\n");
+      }
+      xQueueReceive(h_queue_handshake, &msg, 0);
+      MASTER_ID = msg->payload.payload_handshake.data.id_only.my_id;
+      hello_msg_from_master_recived = true;
+      free(msg);
+
+    } else if(msg->payload.payload_handshake.type == type_report_to_root){ 
+      //todo questo caso può succedere solo se sono root, devo ancora inventarmi come gestirlo bene
+      vTaskDelay(pdMS_TO_TICKS(1000));
+    
+    } else{
+      printf("ERRORE: messaggio strano in task_handle_handshake\n");
+      print_msg_struct(msg);
+      vTaskDelay(pdMS_TO_TICKS(5000));
+    }
+
+    if(hello_msg_from_master_recived && hello_msg_from_slave_recived){
+      send_handshake_type_report_to_root();
+      report_msg_to_root_sent = true;
+      vTaskDelete(NULL); //todo se la task serve solo per gli hello posso eliminare altrimenti no!
+    }
   }
+}
+
+
+/*
+continua a mandare al master un hello finchè non risponde
+*/
+void task_send_hello_msg_to_master(){
+  if(SELF_ID == ROOT_ID){
+    vTaskDelete(NULL);
+  }
+  
+  while (!hello_msg_from_master_recived){
+    Msg* hello_msg = malloc(sizeof(Msg));
+
+    hello_msg->header = HEADER_BYTE;
+    hello_msg->footer = FOOTER_4_BYTES;
+
+    hello_msg->sender_id = SELF_ID;
+    hello_msg->target_id = -1;
+    hello_msg->type = type_handshake;
+
+    hello_msg->payload.payload_handshake.type = type_hello;
+    hello_msg->payload.payload_handshake.data.id_only.my_id = SELF_ID;
+
+    xQueueSend(h_queue_send_to_master, &hello_msg, portMAX_DELAY);
+    vTaskDelay(pdMS_TO_TICKS(10000));
+  }
+  printf("hello_msg_from_master_recived; UCCIDO LA TASK\n");
+  vTaskDelete(NULL);
 }
 
 
 //TODO _______________________________________ SOLO MASTER - MAPPA NODI
-/*
-#define NODES_ARR_SIZE 10 
 
-typedef struct{
-  int id;
-  int master_id;
-  int slave_id;
-}node;
-node nodes_arr[NODES_ARR_SIZE];
-int nodes_arr_len =0;
-
-void print_nodes_arr_len(){
-
-}
-
-void init_nodes_arr(){
-  nodes_arr[0] = (node){.id=0, .master_id=-2, .slave_id=-1};
-  nodes_arr_len = 1;
-}
-
-int find_and_update(int id, int master_id, int slave_id){
-
-  for(int i=0; i<nodes_arr_len; i++){
-    if(nodes_arr[i].id == id){
-      if(master_id >= 0){ //se non è -1 (INFO VECCHIA? assumo sia aggiornato)
-        nodes_arr[i].master_id = master_id;
-      } 
-      if(slave_id >= 0){
-        nodes_arr[i].slave_id = slave_id;
-      }
-      return true;
-    }
-  }
-
-  return false;
-}
-
-void task_handle_report(void *arg){ //!NON TESTATA
-  while(1){
-    Msg* msg;
-    xQueueReceive(h_queue_handshake, &msg, portMAX_DELAY);
-    if(!(msg->type == type_handshake && msg->payload.payload_handshake.type == type_report_to_root)){
-      printf("ERRORE: type o handshake_type\n");
-      return;
-    }
-
-    int id = msg->payload.payload_handshake.my_id;
-    int master_id = msg->payload.payload_handshake.my_master_id;
-    int slave_id = msg->payload.payload_handshake.my_slave_id;
-
-    bool found = find_and_update(id, master_id, slave_id);
-    if(found == true && nodes_arr_len < NODES_ARR_SIZE){
-      nodes_arr[nodes_arr_len] = (node){.id=id, .master_id=master_id, .slave_id=slave_id};
-      find_and_update(master_id, -2, id);
-      nodes_arr_len +=1;
-    }
-    free(msg);
-  }
-}
-*/
 
 //* _______________________________________ MAIN e TEST
 
@@ -397,9 +414,11 @@ void test(int num){
   Msg* prova = malloc(sizeof(Msg));
   prova->header = HEADER_BYTE;
   prova->footer = FOOTER_4_BYTES;
+
   prova->sender_id = 0;
   prova->target_id = 2;
   prova->type = type_command_01;
+
   char* s1 = prova->payload.payload_command_01.str1;
   char* s2 = prova->payload.payload_command_01.str2;
   sprintf(s1, "MGSN: %d", num);
@@ -410,7 +429,39 @@ void test(int num){
   xQueueSend(h_queue_send_to_slave, &prova, portMAX_DELAY); 
 }
 
+//! _____________________ APP_MAIN _________________________
 void app_main(void){
+  // This deinitializes the Task WDT entirely
+  esp_task_wdt_deinit();
+
+  //!QUI COGLIONE
+  SELF_ID = 1; 
+  bool SET_DEFAULT_IDS = false;
+  bool TEST_FUN = false;
+
+
+  if(SELF_ID == 0){ 
+    L_DELAY = 3000;
+    MASTER_ID = -1;
+    if(SET_DEFAULT_IDS){
+      SLAVE_ID = 1;
+    }
+
+  }else if(SELF_ID == 1){
+    L_DELAY = 600;
+    if(SET_DEFAULT_IDS){
+      MASTER_ID = 0;
+      SLAVE_ID = 2;
+    }
+
+  }else if(SELF_ID == 2){
+    L_DELAY = 100;
+    if(SET_DEFAULT_IDS){
+      MASTER_ID = 2;
+      SLAVE_ID = -1;
+    }
+  }
+
   vTaskDelay(pdMS_TO_TICKS(1500)); //!1. FAI UPLOAD E MONITOR, 2.DAGLI IL TEMPO AL MONTOR DI PARTIRE
 
   //*inizializzo le code
@@ -441,7 +492,6 @@ void app_main(void){
   InfoUART* info_send_master = malloc(sizeof(InfoUART)); 
   info_send_master->select_uart = U_WITH_MASTER;
   info_send_master->select_queue = h_queue_send_to_master;//predo da coda master e invio a master
-  //!problema qui
   xTaskCreate(task_send_uart, "task_send_uart_master", 5000, (void*)info_send_master, 1, NULL);
 
   InfoUART* info_send_slave = malloc(sizeof(InfoUART)); 
@@ -449,34 +499,27 @@ void app_main(void){
   info_send_slave->select_queue = h_queue_send_to_slave;//predo da coda slave e invio a slave
   xTaskCreate(task_send_uart, "task_send_uart_slave", 5000, (void*)info_send_slave, 1, NULL);
 
-  //todo solo root
-  // xTaskCreate(task_handle_report, "task_handle_report", 5000, NULL, 1, NULL); //!UNTESTED!!!
-
-
-  //*test, più sono lontani dalla root più lampeggiano veloce
-  //!QUI COGLIONE
-  SELF_ID = 2; 
-
-  if(SELF_ID == 0){ 
-    L_DELAY = 3000;
-    MASTER_ID = -1;
-    SLAVE_ID = 1;
-
-  }else if(SELF_ID == 1){
-    L_DELAY = 600;
-    MASTER_ID = 0;
-    SLAVE_ID = 2; //!ATTENTO COGLIONE
-
-  }else if(SELF_ID == 2){
-    L_DELAY = 100;
-    MASTER_ID = 2;
-    SLAVE_ID = -1;
+  if(!SET_DEFAULT_IDS){
+    xTaskCreate(task_handle_handshake, "task_handle_handshake", 2048, NULL, 1, NULL);
+    xTaskCreate(task_send_hello_msg_to_master, "task_send_hello_msg_to_master", 2048, NULL, 1, NULL);
   }
 
+  //todo solo ROOT task_handle_report
+
+
   int ct =0;
-  while(SELF_ID == 0){
+  while(SELF_ID == 0 && TEST_FUN){
     test(ct);
     ct++;
     vTaskDelay(pdMS_TO_TICKS(10000));
   }
+
+  while(1) { // Loop infinito per tenere viva la task
+    // Questo delay è FONDAMENTALE. 
+    // Senza questo, se SELF_ID != 0, il loop gira alla velocità della luce 
+    // e causa il Watchdog Reset che stai vedendo.
+    vTaskDelay(pdMS_TO_TICKS(10000)); 
+  }
+
+  printf("ERRORE: APP MAIN RAGGIUNTO LA FINE!\n");
 }

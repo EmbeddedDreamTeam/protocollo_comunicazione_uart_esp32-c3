@@ -1,7 +1,7 @@
 {
     "version":            "1.2",
     "project_name":       "prova_espidf",
-    "project_version":    "9a4bf90-dirty",
+    "project_version":    "df4a43a-dirty",
     "project_path":       "/home/cesarov/Desktop/protocollo_uart",
     "idf_path":           "/home/cesarov/.platformio/packages/framework-espidf",
     "build_dir":          "/home/cesarov/Desktop/protocollo_uart/.pio/build/esp32-c3-devkitm-1",
@@ -1480,7 +1480,7 @@
             "managed_reqs": [],
             "managed_priv_reqs": [],
             "file": "/home/cesarov/Desktop/protocollo_uart/.pio/build/esp32-c3-devkitm-1/esp-idf/src/libsrc.a",
-            "sources": [ "/home/cesarov/Desktop/protocollo_uart/src/CMakeLists.txt", "/home/cesarov/Desktop/protocollo_uart/src/main.c", "/home/cesarov/Desktop/protocollo_uart/src/structs.h" ],
+            "sources": [ "/home/cesarov/Desktop/protocollo_uart/src/CMakeLists.txt", "/home/cesarov/Desktop/protocollo_uart/src/main.c", "/home/cesarov/Desktop/protocollo_uart/src/root_only.h", "/home/cesarov/Desktop/protocollo_uart/src/structs.h" ],
             "include_dirs": []
         },
         "tcp_transport": {
