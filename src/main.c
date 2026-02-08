@@ -78,7 +78,7 @@ void print_msg_struct(Msg* msg){
   printf("HEAP PT: %p \n", msg);
   printf("Sender: %d\n", msg->sender_id);
   printf("Target: %d\n", msg->target_id);
-  printf("Type [0:type_command_01, 1:type_command_02, 2:type_handshake, 3:type_no_msg_type]: %d\n", msg->type);
+  printf("Type [0:type_command_01, 1:type_command_02, 2:type_handshake, 3:payload_report]: %d\n", msg->type);
   printf("Header: %d\n", msg->header);
   printf("Footer: %ld\n", msg->footer);
 
@@ -86,19 +86,20 @@ void print_msg_struct(Msg* msg){
   if (msg->type == type_command_01) {
     printf("str1: %s\n", msg->payload.payload_command_01.str1);
     printf("str2: %s\n", msg->payload.payload_command_01.str2);
+
   } else if (msg->type == type_command_02) {
     printf("num1: %d\n", msg->payload.payload_command_02.num1);
-    printf("num2: %f\n\n", msg->payload.payload_command_02.num2);
+    printf("num2: %f\n", msg->payload.payload_command_02.num2);
+
   } else if (msg->type == type_handshake) {
-    printf("Type [0:type_hello, 1:type_ACK_hello, 2:type_report_to_root, 3:type_no_handshake_type]: %d\n", msg->payload.payload_handshake.type);
-    if(msg->payload.payload_handshake.type == type_hello || msg->payload.payload_handshake.type == type_ACK_hello){
-      printf("my_id: %d\n\n", msg->payload.payload_handshake.data.id_only.my_id);
-    }else if(msg->payload.payload_handshake.type == type_report_to_root){
-      printf("my_slave_id: %d\n\n", msg->payload.payload_handshake.data.all_info.my_slave_id);
-      printf("my_id: %d\n\n", msg->payload.payload_handshake.data.all_info.my_id);
-      printf("my_master_id: %d\n\n", msg->payload.payload_handshake.data.all_info.my_master_id);
-    }
-  }else{
+    printf("Type [0:type_hello, 1:type_ACK_hello]: %d\n", msg->payload.payload_handshake.handshake_type);
+
+  } else if (msg->type == type_report) {
+    printf("my_slave_id: %d\n", msg->payload.payload_report.my_slave_id);
+    printf("my_id: %d\n", msg->payload.payload_report.my_id);
+    printf("my_master_id: %d\n", msg->payload.payload_report.my_master_id);
+
+  } else{
     printf("ERRORE: type non riconosciuto\n");
   }
   printf("\n");
@@ -169,7 +170,7 @@ void task_receive_uart(void *arg){
         free(msg); //? il free è qui
 
       }
-    printf("\n====================\n");
+    printf("====================\n");
     fflush(stdout);
   }
   }
@@ -283,16 +284,18 @@ bool hello_msg_from_slave_recived = false;
 bool hello_msg_from_master_recived = false;
 bool report_msg_to_root_sent = false;
 
+
 /*
 Il mio slave si è già presentato => io gli rispondo presentandomi
 */
-void send_handshake_type_hello_to_slave(){
+void send_handshake_msg_to_slave(){
   Msg* hello_msg = malloc(sizeof(Msg));
   hello_msg->sender_id = SELF_ID;
   hello_msg->target_id = SLAVE_ID;
   hello_msg->type = type_handshake;
-  hello_msg->payload.payload_handshake.type = type_ACK_hello;
-  hello_msg->payload.payload_handshake.data.id_only.my_id = SELF_ID;
+
+  hello_msg->payload.payload_handshake.handshake_type = type_ACK_hello;
+
   hello_msg->header = HEADER_BYTE;
   hello_msg->footer = FOOTER_4_BYTES;
 
@@ -315,10 +318,9 @@ void send_handshake_type_report_to_root(){
   hello_msg->target_id = ROOT_ID;
   hello_msg->type = type_handshake;
 
-  hello_msg->payload.payload_handshake.type = type_report_to_root;
-  hello_msg->payload.payload_handshake.data.all_info.my_id = SELF_ID;
-  hello_msg->payload.payload_handshake.data.all_info.my_slave_id = SLAVE_ID;
-  hello_msg->payload.payload_handshake.data.all_info.my_master_id = MASTER_ID;
+  hello_msg->payload.payload_report.my_id = SELF_ID;
+  hello_msg->payload.payload_report.my_slave_id = SLAVE_ID;
+  hello_msg->payload.payload_report.my_master_id = MASTER_ID;
 
   hello_msg->header = HEADER_BYTE;
   hello_msg->footer = FOOTER_4_BYTES;
@@ -336,28 +338,30 @@ void task_handle_handshake(){
   Msg *msg = NULL;
   xQueuePeek(h_queue_handshake, &msg, portMAX_DELAY);
 
-    if(msg->payload.payload_handshake.type == type_hello && SLAVE_ID == -1){
-      if(hello_msg_from_slave_recived){
-        printf("ERRORE: E' ARRIVATO UN >1'nt HELLO DA SLAVE\n");
+    if(msg->type == type_handshake && msg->payload.payload_handshake.handshake_type == type_hello){
+      if(hello_msg_from_slave_recived && msg->sender_id == SLAVE_ID){
+        printf("ERRORE: mi è arrivato un altro HELLO dallo stesso slave (ID= %d)\n", msg->sender_id);
+      }else if(hello_msg_from_slave_recived && msg->sender_id != SLAVE_ID){
+        printf("ERRORE: mi è arrivato un altro HELLO; E' cambiato lo slave! (OLD= %d; NEW= %d)\n", SLAVE_ID, msg->sender_id);
       }
+
       xQueueReceive(h_queue_handshake, &msg, 0);
-      SLAVE_ID = msg->payload.payload_handshake.data.id_only.my_id;
+      SLAVE_ID = msg->sender_id;
       hello_msg_from_slave_recived = true;
-      send_handshake_type_hello_to_slave();
+      send_handshake_msg_to_slave();
       free(msg);
 
-    } else if(msg->payload.payload_handshake.type == type_ACK_hello && MASTER_ID == -1){
-      if(hello_msg_from_master_recived){
-        printf("ERRORE: E' ARRIVATO UN >1'nt ACK_HELLO DA MASTER\n");
+    } else if(msg->type == type_handshake && msg->payload.payload_handshake.handshake_type == type_ACK_hello){
+      if(hello_msg_from_master_recived && msg->sender_id == MASTER_ID){
+        printf("ERRORE: mi è arrivato un altro HELLO dallo stesso master (ID= %d)\n", msg->sender_id);
+      }else if(hello_msg_from_master_recived && msg->sender_id != MASTER_ID){
+        printf("ERRORE: mi è arrivato un altro HELLO; E' cambiato il master! (OLD= %d; NEW= %d)\n", MASTER_ID, msg->sender_id);
       }
+
       xQueueReceive(h_queue_handshake, &msg, 0);
-      MASTER_ID = msg->payload.payload_handshake.data.id_only.my_id;
+      MASTER_ID = msg->sender_id;
       hello_msg_from_master_recived = true;
       free(msg);
-
-    } else if(msg->payload.payload_handshake.type == type_report_to_root){ 
-      //todo questo caso può succedere solo se sono root, devo ancora inventarmi come gestirlo bene
-      vTaskDelay(pdMS_TO_TICKS(1000));
     
     } else{
       printf("ERRORE: messaggio strano in task_handle_handshake\n");
@@ -368,7 +372,7 @@ void task_handle_handshake(){
     if(hello_msg_from_master_recived && hello_msg_from_slave_recived){
       send_handshake_type_report_to_root();
       report_msg_to_root_sent = true;
-      vTaskDelete(NULL); //todo se la task serve solo per gli hello posso eliminare altrimenti no!
+      vTaskDelete(NULL);
     }
   }
 }
@@ -392,8 +396,7 @@ void task_send_hello_msg_to_master(){
     hello_msg->target_id = -1;
     hello_msg->type = type_handshake;
 
-    hello_msg->payload.payload_handshake.type = type_hello;
-    hello_msg->payload.payload_handshake.data.id_only.my_id = SELF_ID;
+    hello_msg->payload.payload_handshake.handshake_type = type_hello;
 
     xQueueSend(h_queue_send_to_master, &hello_msg, portMAX_DELAY);
     vTaskDelay(pdMS_TO_TICKS(10000));
@@ -401,6 +404,8 @@ void task_send_hello_msg_to_master(){
   printf("hello_msg_from_master_recived; UCCIDO LA TASK\n");
   vTaskDelete(NULL);
 }
+
+
 
 
 //TODO _______________________________________ SOLO MASTER - MAPPA NODI
