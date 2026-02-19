@@ -28,11 +28,12 @@
 //ids
 #define ROOT_ID 0 //perchè sì
 #define UNKNOWN_ID -1
-#define INVALID_ID -2 
 
 //header e footer di ogni messaggio
 #define HEADER_BYTE 0xAA
 #define FOOTER_4_BYTES 0xCAFEBABE
+
+#define STR_PROVA "messaggio_corretto"
 
 int MASTER_ID = UNKNOWN_ID; //li ho hardcodati nel mockup c'è un protocollo di hello che forse funziona
 int SELF_ID = UNKNOWN_ID;
@@ -55,6 +56,33 @@ typedef struct{
   QueueHandle_t select_queue;
 } InfoUART;
 
+
+
+
+//* _______________________________________LED
+void init_led(){
+  gpio_reset_pin(LED_GPIO);
+  gpio_set_direction(LED_GPIO, GPIO_MODE_OUTPUT);
+}
+
+void toggle_led(bool s){
+  gpio_set_level(LED_GPIO, !s);
+}
+
+int L_DELAY = 200;
+void task_led(void *info){
+  init_led();
+  
+  while(1){
+    toggle_led(1);
+    vTaskDelay(pdMS_TO_TICKS(L_DELAY));
+    toggle_led(0);
+    vTaskDelay(pdMS_TO_TICKS(L_DELAY));
+  }
+}
+
+
+//* _______________________________________PRINT DEBUG INFO
 void print_info_uart_struct(InfoUART* info){
   printf("\nselect_uart: %d\n", info->select_uart);
   printf("select_queue: %p\n\n", (void*)info->select_queue);
@@ -217,8 +245,13 @@ void task_execute_command_01(void *arg){
   while(1){
     Msg *msg = NULL;
     xQueueReceive(h_queue_command_01, &msg, portMAX_DELAY);
-    printf("execute_command_01");
-    vTaskDelay(pdMS_TO_TICKS(10000));
+    if(strcmp(msg->payload.payload_command_01.str2, STR_PROVA) == 0){
+      printf("OK, str2 corretta\n");
+      toggle_led(1);
+
+    }else{
+      printf("ERRORE: str2= %s\n", msg->payload.payload_command_01.str2);
+    }
 
     // printf("181 FR DI: %p \n", msg);
     free(msg);
@@ -238,22 +271,8 @@ void task_execute_command_02(void *arg){
   }
 }
 
-//* _______________________________________ ON START (LED + INIT UART)
 
-int L_DELAY = 200;
-void task_led(void *info){
-  gpio_reset_pin(LED_GPIO);
-  gpio_set_direction(LED_GPIO, GPIO_MODE_OUTPUT);
-  
-  while(1){
-    gpio_set_level(LED_GPIO, 1);
-    vTaskDelay(pdMS_TO_TICKS(L_DELAY));
-    gpio_set_level(LED_GPIO, 0);
-    vTaskDelay(pdMS_TO_TICKS(L_DELAY));
-  }
-}
-
-
+//* _______________________________________ ON START INIT UART
 
 void init_uart(uart_port_t uart_num, int rx_pin, int tx_pin) {
     const uart_config_t uart_config = {
@@ -427,12 +446,24 @@ void test(int num){
   char* s1 = prova->payload.payload_command_01.str1;
   char* s2 = prova->payload.payload_command_01.str2;
   sprintf(s1, "MGSN: %d", num);
-  strcpy(s2, "ciao2");
+  strcpy(s2, STR_PROVA);
 
   printf("\nmetto in h_queue_send_to_slave: %p\n", prova);
 
   xQueueSend(h_queue_send_to_slave, &prova, portMAX_DELAY); 
 }
+
+
+void create_msg(Payload pd, int sender_id, int target_id, MsgType type){
+  Msg* msg = malloc(sizeof(Msg));
+  msg->footer = FOOTER_4_BYTES;
+  msg->header = HEADER_BYTE;
+  msg->payload = pd;
+  msg->sender_id = sender_id;
+  msg->target_id = target_id;
+  msg->type = type;
+}
+
 
 //! _____________________ APP_MAIN _________________________
 void app_main(void){
@@ -441,8 +472,8 @@ void app_main(void){
 
   //!QUI COGLIONE
   SELF_ID = 1; 
-  bool SET_DEFAULT_IDS = false;
-  bool TEST_FUN = false;
+  bool SET_DEFAULT_IDS = true;
+  bool TEST_FUN = true;
 
 
   if(SELF_ID == 0){ 
@@ -482,7 +513,14 @@ void app_main(void){
   init_uart(U_WITH_MASTER, FROM_MASTER_RX, TO_MASTER_TX);
 
   //*creo le task
-  xTaskCreate(task_led, "task_led", 2048, NULL, 1, &h_task_led);
+
+  //LED
+  init_led();
+  if(SELF_ID != 2){ //! TASK LED!!!!
+    xTaskCreate(task_led, "task_led", 2048, NULL, 1, &h_task_led);
+  }else{
+    toggle_led(0);
+  }
 
   InfoUART* info_receive_master = malloc(sizeof(InfoUART)); 
   info_receive_master->select_uart = U_WITH_MASTER;
