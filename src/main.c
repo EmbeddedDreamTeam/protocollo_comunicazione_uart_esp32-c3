@@ -39,8 +39,13 @@ int MASTER_ID = UNKNOWN_ID; //li ho hardcodati nel mockup c'è un protocollo di 
 int SELF_ID = UNKNOWN_ID;
 int SLAVE_ID = UNKNOWN_ID;
 
+bool BLINK_LED_ON_TEST_MSG = false;
+
+
+
+//* _______________________________________FRAMEWORK GLOBALS
 //handles:
-TaskHandle_t h_task_led;
+TaskHandle_t h_task_blink_led;
 
 //code x tutti i tipi di comandi diversi
 QueueHandle_t h_queue_command_01;
@@ -67,6 +72,16 @@ void init_led(){
 
 void toggle_led(bool s){
   gpio_set_level(LED_GPIO, !s);
+}
+
+void task_blink_led(){
+  int DELAY = 800;
+  while(1){
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
+    toggle_led(0);
+    vTaskDelay(pdMS_TO_TICKS(DELAY));
+    toggle_led(1);
+  }
 }
 
 int L_DELAY = 200;
@@ -165,7 +180,7 @@ void task_receive_uart(void *arg){
       // }
 
       if(msg->header != HEADER_BYTE){
-        // vTaskDelay(1);
+        
         continue; //così rilegge da subito
       }
       uart_read_bytes(info_uart->select_uart, (uint8_t*)msg+1, sizeof(Msg)-1, portMAX_DELAY);
@@ -173,6 +188,19 @@ void task_receive_uart(void *arg){
         message_ok = true;
       }
     }
+
+    //TODO solo un test è da rimovere
+    if(BLINK_LED_ON_TEST_MSG){
+      if(msg->type == type_command_01){
+        if(strcmp(msg->payload.payload_command_01.str2, STR_PROVA) == 0){
+          printf("OK, str2 corretta\n");
+          xTaskNotifyGive(h_task_blink_led);
+        }else{
+          printf("ERRORE: str2= %s\n", msg->payload.payload_command_01.str2);
+        }
+      }
+    }
+    //TODO __solo un test è da rimouvere
 
     printf("\n====================\n");
     
@@ -242,16 +270,10 @@ void task_send_uart(void *arg){
 
 //* _______________________________________ EXECUTE COMMANDS
 void task_execute_command_01(void *arg){
+  printf("task_execute_command_01 CREATED\n");
   while(1){
     Msg *msg = NULL;
     xQueueReceive(h_queue_command_01, &msg, portMAX_DELAY);
-    if(strcmp(msg->payload.payload_command_01.str2, STR_PROVA) == 0){
-      printf("OK, str2 corretta\n");
-      toggle_led(1);
-
-    }else{
-      printf("ERRORE: str2= %s\n", msg->payload.payload_command_01.str2);
-    }
 
     // printf("181 FR DI: %p \n", msg);
     free(msg);
@@ -471,9 +493,10 @@ void app_main(void){
   esp_task_wdt_deinit();
 
   //!QUI COGLIONE
-  SELF_ID = 1; 
+  SELF_ID = 0; 
   bool SET_DEFAULT_IDS = true;
   bool TEST_FUN = true;
+  BLINK_LED_ON_TEST_MSG = 0; //normal beeping if FALSE
 
 
   if(SELF_ID == 0){ 
@@ -516,10 +539,11 @@ void app_main(void){
 
   //LED
   init_led();
-  if(SELF_ID != 2){ //! TASK LED!!!!
-    xTaskCreate(task_led, "task_led", 2048, NULL, 1, &h_task_led);
-  }else{
+  if(BLINK_LED_ON_TEST_MSG){ //! TASK LED!!!!
     toggle_led(0);
+    xTaskCreate(task_blink_led, "task_blink_led", 2048, NULL, 1, &h_task_blink_led);
+  }else{
+    xTaskCreate(task_led, "task_led", 2048, NULL, 1, NULL);
   }
 
   InfoUART* info_receive_master = malloc(sizeof(InfoUART)); 
@@ -546,6 +570,9 @@ void app_main(void){
     xTaskCreate(task_handle_handshake, "task_handle_handshake", 2048, NULL, 1, NULL);
     xTaskCreate(task_send_hello_msg_to_master, "task_send_hello_msg_to_master", 2048, NULL, 1, NULL);
   }
+
+  xTaskCreate(task_execute_command_01, "task_execute_command_01", 5000, NULL, 1, NULL);
+  xTaskCreate(task_execute_command_02, "task_execute_command_02", 5000, NULL, 1, NULL);
 
   //todo solo ROOT task_handle_report
 
