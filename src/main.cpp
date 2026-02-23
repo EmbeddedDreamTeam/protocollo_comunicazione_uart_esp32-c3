@@ -1,4 +1,4 @@
-#include "utils.h"
+#include "utils_communication.h"
 
 extern "C" void app_main(void){
   init_comunication(); //todo also has test for now

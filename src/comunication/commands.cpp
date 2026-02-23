@@ -1,15 +1,4 @@
-#include <stdio.h>
-#include <string.h>
-
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/queue.h"
-#include "driver/gpio.h"
-#include "driver/uart.h"
-#include "esp_task_wdt.h"
-
-#include "msg_structs.h"
-#include "utils.h"
+#include "utils_communication.h"
 
 //* _______________________________________ EXECUTE COMMANDS
 void task_execute_command_01(void *arg){

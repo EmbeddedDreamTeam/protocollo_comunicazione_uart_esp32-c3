@@ -3,7 +3,7 @@
 
 //definiti da me:
 #include "msg_structs.h"
-#include "utils.h"
+#include "utils_communication.h"
 
 //* _______________________________________UART RECEIVE
 void sort_new_msg(Msg *msg){
