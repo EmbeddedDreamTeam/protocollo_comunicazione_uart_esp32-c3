@@ -1,7 +1,7 @@
 {
     "version":            "1.2",
     "project_name":       "prova_espidf",
-    "project_version":    "8b4cac7-dirty",
+    "project_version":    "63eeec8-dirty",
     "project_path":       "/home/cesarov/Desktop/protocollo_uart",
     "idf_path":           "/home/cesarov/.platformio/packages/framework-espidf",
     "build_dir":          "/home/cesarov/Desktop/protocollo_uart/.pio/build/esp32-c3-devkitm-1",
@@ -1480,7 +1480,7 @@
             "managed_reqs": [],
             "managed_priv_reqs": [],
             "file": "/home/cesarov/Desktop/protocollo_uart/.pio/build/esp32-c3-devkitm-1/esp-idf/src/libsrc.a",
-            "sources": [ "/home/cesarov/Desktop/protocollo_uart/src/CMakeLists.txt", "/home/cesarov/Desktop/protocollo_uart/src/GLOBAL_VARS.cpp", "/home/cesarov/Desktop/protocollo_uart/src/commands.cpp", "/home/cesarov/Desktop/protocollo_uart/src/debug_print.cpp", "/home/cesarov/Desktop/protocollo_uart/src/handshake_and_report.cpp", "/home/cesarov/Desktop/protocollo_uart/src/led.cpp", "/home/cesarov/Desktop/protocollo_uart/src/main.cpp", "/home/cesarov/Desktop/protocollo_uart/src/msg_structs.h", "/home/cesarov/Desktop/protocollo_uart/src/uart.cpp", "/home/cesarov/Desktop/protocollo_uart/src/utils.h" ],
+            "sources": [ "/home/cesarov/Desktop/protocollo_uart/src/CMakeLists.txt", "/home/cesarov/Desktop/protocollo_uart/src/comunication/GLOBAL_VARS.cpp", "/home/cesarov/Desktop/protocollo_uart/src/comunication/commands.cpp", "/home/cesarov/Desktop/protocollo_uart/src/comunication/debug_print.cpp", "/home/cesarov/Desktop/protocollo_uart/src/comunication/handshake_and_report.cpp", "/home/cesarov/Desktop/protocollo_uart/src/comunication/init_comunication.cpp", "/home/cesarov/Desktop/protocollo_uart/src/comunication/led.cpp", "/home/cesarov/Desktop/protocollo_uart/src/comunication/uart.cpp", "/home/cesarov/Desktop/protocollo_uart/src/main.cpp" ],
             "include_dirs": []
         },
         "tcp_transport": {
