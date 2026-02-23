@@ -1733,16 +1733,6 @@ rule C_STATIC_LIBRARY_LINKER____idf_wifi_provisioning_
 
 
 #############################################
-# Rule for compiling C files.
-
-rule C_COMPILER____idf_src_unscanned_
-  depfile = $DEP_FILE
-  deps = gcc
-  command = ${LAUNCHER}${CODE_CHECK}/home/cesarov/.platformio/packages/toolchain-riscv32-esp/bin/riscv32-esp-elf-gcc $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out -c $in
-  description = Building C object $out
-
-
-#############################################
 # Rule for compiling CXX files.
 
 rule CXX_COMPILER____idf_src_unscanned_

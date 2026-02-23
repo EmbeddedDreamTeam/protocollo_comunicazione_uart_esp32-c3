@@ -1,0 +1,96 @@
+#pragma once
+
+#include <stdio.h>
+#include <string.h>
+
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
+#include "driver/gpio.h"
+#include "driver/uart.h"
+#include "esp_task_wdt.h"
+
+#include "msg_structs.h"
+
+//* _______________________________________ CONSTS e STRUCTS
+#define U_WITH_MASTER 0
+#define U_WITH_SLAVE 1
+
+#define FROM_MASTER_RX 9
+#define TO_MASTER_TX 10
+#define FROM_SLAVE_RX 2
+#define TO_SLAVE_TX 3
+
+#define U_BUF_SIZE 1024 
+#define BAUD_RATE 115200
+
+#define LED_GPIO GPIO_NUM_8 
+
+//ids
+#define ROOT_ID 0 
+#define UNKNOWN_ID -1
+
+//header e footer di ogni messaggio
+#define HEADER_BYTE 0xAA
+#define FOOTER_4_BYTES 0xCAFEBABE
+
+#define STR_PROVA "messaggio_corretto"
+
+
+typedef struct {
+  uart_port_t select_uart; 
+  QueueHandle_t select_queue;
+} InfoUART;
+
+
+//* GLOBAL_VARS.CPP
+extern int MASTER_ID; 
+extern int SELF_ID;
+extern int SLAVE_ID;
+
+extern bool BLINK_ON_RECEIVE_MSG; 
+extern bool BLINK_ON_SEND_MSG;
+
+//handles:
+extern TaskHandle_t h_task_blink_led;
+
+//code x tutti i tipi di comandi diversi
+extern QueueHandle_t h_queue_command_01;
+extern QueueHandle_t h_queue_command_02;
+extern QueueHandle_t h_queue_handshake;
+
+//code x inviare messaggi
+extern QueueHandle_t h_queue_send_to_slave;
+extern QueueHandle_t h_queue_send_to_master;
+
+
+//* LED.CPP
+void toggle_led(bool s);
+void init_led();
+void task_blink_led_once(void *arg);
+void task_blink_led_continously(void *info);
+
+
+//* DEBUG_PRINT.CPP
+void print_info_uart_struct(InfoUART* info);
+const char* get_role_name(int role);
+void print_msg_struct(Msg* msg);
+
+
+//* UART.CPP
+void sort_new_msg(Msg *msg);
+void task_receive_uart(void *arg);
+
+
+//* HANDSHAKE_AND_REPORT.CPP
+void send_handshake_msg_to_slave();
+void send_handshake_type_report_to_root();
+void task_handle_handshake(void *arg);
+void task_send_hello_msg_to_master(void *arg);
+
+
+//* COMMANDS.CPP
+void task_execute_command_01(void *arg);
+void task_execute_command_02(void *arg);
+void task_send_uart(void *arg);
+void init_uart(uart_port_t uart_num, int rx_pin, int tx_pin);
