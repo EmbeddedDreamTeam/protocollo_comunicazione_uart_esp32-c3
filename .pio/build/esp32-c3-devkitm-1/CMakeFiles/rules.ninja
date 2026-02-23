@@ -1743,6 +1743,16 @@ rule C_COMPILER____idf_src_unscanned_
 
 
 #############################################
+# Rule for compiling CXX files.
+
+rule CXX_COMPILER____idf_src_unscanned_
+  depfile = $DEP_FILE
+  deps = gcc
+  command = ${LAUNCHER}${CODE_CHECK}/home/cesarov/.platformio/packages/toolchain-riscv32-esp/bin/riscv32-esp-elf-g++ $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out -c $in
+  description = Building CXX object $out
+
+
+#############################################
 # Rule for linking C static library.
 
 rule C_STATIC_LIBRARY_LINKER____idf_src_
