@@ -51,9 +51,10 @@ extern int SLAVE_ID;
 
 extern bool BLINK_ON_RECEIVE_MSG; 
 extern bool BLINK_ON_SEND_MSG;
+extern bool BLINK_LOOP_WHEN_IF_IDS_ARE_KNOWN;
 
 //handles:
-extern TaskHandle_t h_task_blink_led;
+// extern TaskHandle_t h_task_blink_led_once;
 
 //code x tutti i tipi di comandi diversi
 extern QueueHandle_t h_queue_command_01;
@@ -72,8 +73,11 @@ void init_comunication();
 //* LED.CPP
 void toggle_led(bool s);
 void init_led();
-void task_blink_led_once(void *arg);
-void task_blink_led_continously(void *info);
+void wake_task_blink_led_once(int DELAY = -1);
+void resume_loop_blink(int DELAY = -1);
+void suspend_loop_blink();
+void set_loop_blink_delay(int DELAY);
+
 
 
 //* DEBUG_PRINT.CPP

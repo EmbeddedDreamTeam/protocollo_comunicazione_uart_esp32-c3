@@ -32,7 +32,7 @@ void send_handshake_type_report_to_root(){
   Msg* hello_msg = new Msg(); 
   hello_msg->sender_id = SELF_ID;
   hello_msg->target_id = ROOT_ID;
-  hello_msg->type = type_handshake;
+  hello_msg->type = type_handshake; //!ERRORE GRAVE DA CORREGGERE!!!
 
   hello_msg->payload.payload_report.my_id = SELF_ID;
   hello_msg->payload.payload_report.my_slave_id = SLAVE_ID;
@@ -67,6 +67,17 @@ void task_handle_handshake(void *arg){
       print_msg_struct(msg);
       vTaskDelay(pdMS_TO_TICKS(5000));
     }
+
+    //TODO test 
+    if(BLINK_LOOP_WHEN_IF_IDS_ARE_KNOWN){
+      if(SELF_ID == ROOT_ID && hello_msg_from_slave_recived){
+        resume_loop_blink();
+      }else if(hello_msg_from_master_recived && hello_msg_from_slave_recived){
+        resume_loop_blink();
+      }
+
+    }
+    //TODO
 
     if(hello_msg_from_master_recived && hello_msg_from_slave_recived){
       send_handshake_type_report_to_root();

@@ -39,7 +39,7 @@ void task_receive_uart(void *arg){
     }
 
     if(BLINK_ON_RECEIVE_MSG && msg->header == HEADER_BYTE && msg->footer == FOOTER_4_BYTES){
-      xTaskNotifyGive(h_task_blink_led);
+      wake_task_blink_led_once();
     }
 
     printf("\n====================\n");
@@ -89,7 +89,7 @@ void task_send_uart(void *arg){
     uart_write_bytes(info_uart->select_uart, (const void*)msg, sizeof(Msg));
 
     if(BLINK_ON_SEND_MSG){
-      xTaskNotifyGive(h_task_blink_led);
+      wake_task_blink_led_once();
     }
     printf("====================\n");
 
