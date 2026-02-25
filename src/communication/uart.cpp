@@ -121,3 +121,17 @@ void init_uart(uart_port_t uart_num, int rx_pin, int tx_pin) {
       printf("\nUART: %d, tx_pin: %d, rx_pin: %d\n", uart_num, tx_pin, rx_pin);
     }
 }
+
+
+Msg* create_msg(int sender_id, int target_id, MsgType type, Payload payload){
+  Msg* msg = new Msg();
+  msg->header = HEADER_BYTE;
+  msg->footer = FOOTER_4_BYTES;
+
+  msg->sender_id = sender_id;
+  msg->target_id = target_id;
+  msg->type = type;
+
+  msg->payload = payload; //shallow copy
+  return msg;
+}
