@@ -5,6 +5,11 @@
 #include "msg_structs.h"
 #include "utils_communication.h"
 
+//*GLOBALS
+SemaphoreHandle_t master_buffer_mutex;
+SemaphoreHandle_t slave_buffer_mutex;
+
+
 //* _______________________________________UART RECEIVE
 void sort_new_msg(Msg *msg){
   if(msg->type == type_command_01){
@@ -13,8 +18,10 @@ void sort_new_msg(Msg *msg){
     xQueueSend(h_queue_command_02, &msg, portMAX_DELAY);
   }else if (msg->type == type_handshake){
     xQueueSend(h_queue_handshake, &msg, portMAX_DELAY);
+  }else if(msg->type == type_report){
+    xQueueSend(h_queue_report, &msg, portMAX_DELAY);
   }else{
-    printf("ERRORE: type: %i , non esiste\n", msg->type);
+    printf("ERRORE: [sort_new_msg] type: %i , non esiste\n", msg->type);
   }
 }
 
@@ -58,7 +65,7 @@ void task_receive_uart(void *arg){
       if(!(((int)uart_opposta == (int)UART_NUM_1 && SLAVE_ID == -1) || ((int)uart_opposta == (int)UART_NUM_0 && MASTER_ID == -1))){
         printf("VERRA' RITRASMESSO A: %s\n", tpr);
         print_msg_struct(msg);
-        xQueueSend(info_uart->select_queue, &msg, portMAX_DELAY); 
+        xQueueSend(info_uart->select_queue, &msg, portMAX_DELAY); //!! CAPIRE SE MASTER O SLAVE
 
       }else{
         printf("ERRORE: IL DESTINATARIO NON ESISTE\n");
@@ -79,7 +86,7 @@ void task_send_uart(void *arg){
 
   while (1) {
     Msg *msg = nullptr; 
-    xQueueReceive(info_uart->select_queue, &msg, portMAX_DELAY);
+    xQueueReceive(info_uart->select_queue, &msg, portMAX_DELAY);//!! CAPIRE SE MASER O SLAVE
 
     printf("\n====================\n");
     const char* role = get_role_name(info_uart->select_uart);
@@ -120,6 +127,9 @@ void init_uart(uart_port_t uart_num, int rx_pin, int tx_pin) {
     if(SELF_ID == 1){ 
       printf("\nUART: %d, tx_pin: %d, rx_pin: %d\n", uart_num, tx_pin, rx_pin);
     }
+
+    master_buffer_mutex = xSemaphoreCreateMutex();
+    slave_buffer_mutex = xSemaphoreCreateMutex();
 }
 
 
@@ -134,4 +144,43 @@ Msg* create_msg(int sender_id, int target_id, MsgType type, Payload payload){
 
   msg->payload = payload; //shallow copy
   return msg;
+}
+
+
+
+
+queue<Msg*> master_pre_init_buffer; 
+void send_msg_to_master(Msg* msg){
+    xSemaphoreTake(master_buffer_mutex, portMAX_DELAY);
+
+    if(MASTER_ID == UNKNOWN_ID && msg->type != type_handshake){
+        master_pre_init_buffer.push(msg);
+    } else {
+        while(!master_pre_init_buffer.empty()){
+            Msg* m = master_pre_init_buffer.front();
+            master_pre_init_buffer.pop();
+            xQueueSend(h_queue_send_to_master, &m, portMAX_DELAY);
+        }
+        xQueueSend(h_queue_send_to_master, &msg, portMAX_DELAY);
+    }
+    xSemaphoreGive(master_buffer_mutex);
+}
+
+
+
+queue<Msg*> slave_pre_init_buffer; 
+void send_msg_to_slave(Msg* msg){
+    xSemaphoreTake(slave_buffer_mutex, portMAX_DELAY);
+
+    if(SLAVE_ID == UNKNOWN_ID && msg->type != type_handshake){
+        slave_pre_init_buffer.push(msg);
+    } else {
+        while(!slave_pre_init_buffer.empty()){
+            Msg* m = slave_pre_init_buffer.front();
+            slave_pre_init_buffer.pop();
+            xQueueSend(h_queue_send_to_slave, &m, portMAX_DELAY);
+        }
+        xQueueSend(h_queue_send_to_slave, &msg, portMAX_DELAY);
+    }
+    xSemaphoreGive(slave_buffer_mutex);
 }

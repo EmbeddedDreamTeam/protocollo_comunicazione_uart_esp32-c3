@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <queue>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -9,9 +10,12 @@
 #include "driver/gpio.h"
 #include "driver/uart.h"
 #include "esp_task_wdt.h"
+#include "freertos/semphr.h"
 
 //mine
 #include "msg_structs.h"
+
+using namespace std;
 
 //* _______________________________________ CONSTS e STRUCTS
 #define U_WITH_MASTER 0
@@ -60,6 +64,7 @@ extern bool BLINK_LOOP_WHEN_IF_IDS_ARE_KNOWN;
 extern QueueHandle_t h_queue_command_01;
 extern QueueHandle_t h_queue_command_02;
 extern QueueHandle_t h_queue_handshake;
+extern QueueHandle_t h_queue_report;
 
 //code x inviare messaggi
 extern QueueHandle_t h_queue_send_to_slave;
@@ -89,6 +94,9 @@ void print_msg_struct(Msg* msg);
 //* UART.CPP
 void sort_new_msg(Msg *msg);
 void task_receive_uart(void *arg);
+Msg* create_msg(int sender_id, int target_id, MsgType type, Payload payload);
+void send_msg_to_master(Msg* msg);
+void send_msg_to_slave(Msg* msg);
 
 
 //* HANDSHAKE_AND_REPORT.CPP
@@ -96,6 +104,7 @@ void send_handshake_msg_to_slave();
 void send_handshake_type_report_to_root();
 void task_handle_handshake(void *arg);
 void task_send_hello_msg_to_master(void *arg);
+void task_handle_report(void* arg);
 
 
 //* COMMANDS.CPP

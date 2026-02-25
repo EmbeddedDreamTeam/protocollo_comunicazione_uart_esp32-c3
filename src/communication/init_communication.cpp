@@ -16,7 +16,8 @@ void test(int num){
 
   printf("\nmetto in h_queue_send_to_slave: %p\n", (void*)prova);
 
-  xQueueSend(h_queue_send_to_slave, &prova, portMAX_DELAY); 
+  // xQueueSend(h_queue_send_to_slave, &prova, portMAX_DELAY); 
+  send_msg_to_slave(prova);
 }
 
 
@@ -31,7 +32,7 @@ void init_comunication(){
   BLINK_ON_SEND_MSG = 1;
   BLINK_LOOP_WHEN_IF_IDS_ARE_KNOWN = 1;
 
-  int32_t L_DELAY = 2000;
+  int32_t L_DELAY = 5000;
 
   if(SELF_ID == 0){ 
     MASTER_ID = -1;
@@ -52,7 +53,8 @@ void init_comunication(){
 
 
   esp_task_wdt_deinit();
-  vTaskDelay(pdMS_TO_TICKS(1500)); 
+  vTaskDelay(pdMS_TO_TICKS(15000)); 
+  printf("\nSTART START START START START START START START!!!\n");
 
   init_led();
   set_loop_blink_delay(L_DELAY);
@@ -65,6 +67,7 @@ void init_comunication(){
   h_queue_handshake = xQueueCreate(10, sizeof(Msg*));
   h_queue_send_to_slave = xQueueCreate(10, sizeof(Msg*));
   h_queue_send_to_master = xQueueCreate(10, sizeof(Msg*));
+  h_queue_report = xQueueCreate(10, sizeof(Msg*));
 
   init_uart((uart_port_t)U_WITH_SLAVE, FROM_SLAVE_RX, TO_SLAVE_TX);
   init_uart((uart_port_t)U_WITH_MASTER, FROM_MASTER_RX, TO_MASTER_TX);
@@ -96,9 +99,14 @@ void init_comunication(){
   if(!SET_DEFAULT_IDS){
     xTaskCreate(task_handle_handshake, "task_handle_handshake", 2048, nullptr, 2, nullptr);
     xTaskCreate(task_send_hello_msg_to_master, "task_send_hello_msg_to_master", 2048, nullptr, 2, nullptr);
+    xTaskCreate(task_handle_report, "task_handle_report", 2028, nullptr, 2, nullptr);
   }
 
 
+  // while(1){
+  //   printf("SLAVE: %d\n", SLAVE_ID);
+  //   vTaskDelay(pdMS_TO_TICKS(4000));
+  // }
   
 
   

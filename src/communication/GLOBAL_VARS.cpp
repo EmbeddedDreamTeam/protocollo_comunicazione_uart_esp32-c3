@@ -26,6 +26,7 @@ bool BLINK_LOOP_WHEN_IF_IDS_ARE_KNOWN = false;
 QueueHandle_t h_queue_command_01;
 QueueHandle_t h_queue_command_02;
 QueueHandle_t h_queue_handshake;
+QueueHandle_t h_queue_report;
 
 //code x inviare messaggi
 QueueHandle_t h_queue_send_to_slave;
