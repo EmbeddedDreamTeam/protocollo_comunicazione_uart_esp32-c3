@@ -19,7 +19,8 @@ int SLAVE_ID = UNKNOWN_ID;
 
 bool BLINK_ON_RECEIVE_MSG = false;
 bool BLINK_ON_SEND_MSG = false;
-bool BLINK_LOOP_WHEN_IF_IDS_ARE_KNOWN = false;
+bool BLINK_LOOP_IF_IDS_ARE_KNOWN = false;
+bool BLINK_LOOP_IF_RECEIVED_REPORT = false;
 
 // TaskHandle_t h_task_blink_led_once;
 //code x tutti i tipi di comandi diversi

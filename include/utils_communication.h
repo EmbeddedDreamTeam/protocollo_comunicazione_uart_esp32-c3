@@ -55,7 +55,8 @@ extern int SLAVE_ID;
 
 extern bool BLINK_ON_RECEIVE_MSG; 
 extern bool BLINK_ON_SEND_MSG;
-extern bool BLINK_LOOP_WHEN_IF_IDS_ARE_KNOWN;
+extern bool BLINK_LOOP_IF_IDS_ARE_KNOWN;
+extern bool BLINK_LOOP_IF_RECEIVED_REPORT;
 
 //handles:
 // extern TaskHandle_t h_task_blink_led_once;
