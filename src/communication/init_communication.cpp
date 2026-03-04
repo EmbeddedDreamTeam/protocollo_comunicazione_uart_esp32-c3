@@ -25,7 +25,7 @@ void init_comunication(){
   
   //todo for test
   
-  SELF_ID = 1; 
+  SELF_ID = 0; 
   bool SET_DEFAULT_IDS = 0; //OTHERWISE IT ATTEMPTS TO SEND HANDSHAKES
   bool TEST_FUN = 0;
   BLINK_ON_RECEIVE_MSG = 1; 

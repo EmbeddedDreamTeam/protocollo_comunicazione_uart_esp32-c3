@@ -17,6 +17,10 @@
 
 using namespace std;
 
+//* 
+#define PRINT_RECEIVED_BYTES 0
+
+
 //* _______________________________________ CONSTS e STRUCTS
 #define U_WITH_MASTER 0
 #define U_WITH_SLAVE 1

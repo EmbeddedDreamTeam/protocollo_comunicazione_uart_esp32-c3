@@ -1,7 +1,7 @@
 {
     "version":            "1.2",
     "project_name":       "prova_espidf",
-    "project_version":    "31e9290-dirty",
+    "project_version":    "2bab438-dirty",
     "project_path":       "/home/cesarov/Desktop/protocollo_uart",
     "idf_path":           "/home/cesarov/.platformio/packages/framework-espidf",
     "build_dir":          "/home/cesarov/Desktop/protocollo_uart/.pio/build/esp32-c3-devkitm-1",
