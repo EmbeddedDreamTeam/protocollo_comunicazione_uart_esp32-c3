@@ -172,6 +172,8 @@
                 "/home/cesarov/.platformio/packages/framework-espidf/components/rt/include",
                 "/home/cesarov/.platformio/packages/framework-espidf/components/spiffs/include",
                 "/home/cesarov/.platformio/packages/framework-espidf/components/wifi_provisioning/include",
+                "/home/cesarov/Desktop/protocollo_uart/include/uart_headers",
+                "/home/cesarov/Desktop/protocollo_uart/include/wifi_headers",
                 ""
             ],
             "browse": {
@@ -341,6 +343,8 @@
                     "/home/cesarov/.platformio/packages/framework-espidf/components/rt/include",
                     "/home/cesarov/.platformio/packages/framework-espidf/components/spiffs/include",
                     "/home/cesarov/.platformio/packages/framework-espidf/components/wifi_provisioning/include",
+                    "/home/cesarov/Desktop/protocollo_uart/include/uart_headers",
+                    "/home/cesarov/Desktop/protocollo_uart/include/wifi_headers",
                     ""
                 ]
             },
