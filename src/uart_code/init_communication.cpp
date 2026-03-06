@@ -35,10 +35,7 @@ void init_comunication(){
   bool SET_DEFAULT_IDS = 0; //OTHERWISE IT ATTEMPTS TO SEND HANDSHAKES
   bool TEST_FUN = 0;
 
-  BLINK_ON_RECEIVE_MSG = 1; 
-  BLINK_ON_SEND_MSG = 1;
-  BLINK_LOOP_IF_IDS_ARE_KNOWN = 1;
-  BLINK_LOOP_IF_RECEIVED_REPORT = 0;
+  PRINT_RECEIVED_BYTES = 0;
 
   int32_t L_DELAY = 5000;
 
@@ -87,6 +84,7 @@ void init_comunication(){
   h_queue_send_to_slave = xQueueCreate(10, sizeof(Msg*));
   h_queue_send_to_master = xQueueCreate(10, sizeof(Msg*));
   h_queue_report = xQueueCreate(10, sizeof(Msg*));
+  h_queue_servo = xQueueCreate(10, sizeof(Msg*));
 
   //*UART
   init_uart((uart_port_t)U_WITH_SLAVE, FROM_SLAVE_RX, TO_SLAVE_TX);
@@ -101,6 +99,7 @@ void init_comunication(){
   //todo E' SOLO UN MOCKUP, DA RIMUOVERE 
   xTaskCreate(task_execute_command_01, "task_execute_command_01", 5000, nullptr, 1, nullptr);
   xTaskCreate(task_execute_command_02, "task_execute_command_02", 5000, nullptr, 1, nullptr);
+  xTaskCreate(task_execute_servo, "task_execute_servo", 5000, nullptr, 2, nullptr);
   //todo
 
   //*HANDSHAKE
@@ -109,6 +108,11 @@ void init_comunication(){
     xTaskCreate(task_send_hello_msg_to_master, "task_send_hello_msg_to_master", 5000, nullptr, 2, nullptr);
     xTaskCreate(task_handle_report, "task_handle_report", 5000, nullptr, 2, nullptr);
   }
+
+
+  //! DOESNT WORK !!!
+  float rr[3] = {1,2,3};
+  convert_servo_instructions(rr, 3);
   
 
   //todo TEST FUNCTION

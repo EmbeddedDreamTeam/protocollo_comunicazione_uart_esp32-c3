@@ -49,14 +49,17 @@ void task_handle_handshake(void *arg){
       hello_msg_from_slave_recived = true;
       send_handshake_msg_to_slave();
       if(SELF_ID == ROOT_ID){
-        init_report_handler(SLAVE_ID);
+        init_report_handler(SLAVE_ID); //necessario sapere chi è lo slave della root immediatamente
       }
+      send_buffered_messages_to_slave();
 
       delete msg; 
 
     } else if(msg->type == type_handshake && msg->payload.payload_handshake.handshake_type == type_ACK_hello){ //from MASTER
       MASTER_ID = msg->sender_id;
       hello_msg_from_master_recived = true;
+      send_buffered_messages_to_master();
+      
       delete msg; 
     
     } else{

@@ -20,6 +20,8 @@ void sort_new_msg(Msg *msg){
     xQueueSend(h_queue_handshake, &msg, portMAX_DELAY);
   }else if(msg->type == type_report){
     xQueueSend(h_queue_report, &msg, portMAX_DELAY);
+  }else if(msg->type == type_servo){
+    xQueueSend(h_queue_servo, &msg, portMAX_DELAY);
   }else{
     printf("ERRORE: [sort_new_msg] type: %i , non esiste\n", msg->type);
   }
@@ -214,20 +216,23 @@ Msg* create_msg(int sender_id, int target_id, MsgType type, Payload payload){
 }
 
 
-
 // accumula tutti i messaggi che non puo inviare al suo master xche non lo conosce
 queue<Msg*> master_pre_init_buffer; 
+void send_buffered_messages_to_master(){
+    while(!master_pre_init_buffer.empty() && MASTER_ID != UNKNOWN_ID){
+        Msg* m = master_pre_init_buffer.front();
+        master_pre_init_buffer.pop();
+        xQueueSend(h_queue_send_to_master, &m, portMAX_DELAY);
+    }
+}
+
+
 void send_msg_to_master(Msg* msg){
     xSemaphoreTake(master_buffer_mutex, portMAX_DELAY);
 
     if(MASTER_ID == UNKNOWN_ID && msg->type != type_handshake){
         master_pre_init_buffer.push(msg);
     } else {
-        while(!master_pre_init_buffer.empty()){
-            Msg* m = master_pre_init_buffer.front();
-            master_pre_init_buffer.pop();
-            xQueueSend(h_queue_send_to_master, &m, portMAX_DELAY);
-        }
         xQueueSend(h_queue_send_to_master, &msg, portMAX_DELAY);
     }
     xSemaphoreGive(master_buffer_mutex);
@@ -237,17 +242,20 @@ void send_msg_to_master(Msg* msg){
 
 // accumula tutti i messaggi che non puo inviare al suo slave xche non lo conosce
 queue<Msg*> slave_pre_init_buffer; 
-void send_msg_to_slave(Msg* msg){
-    xSemaphoreTake(slave_buffer_mutex, portMAX_DELAY);
-
-    if(SLAVE_ID == UNKNOWN_ID && msg->type != type_handshake){
-        slave_pre_init_buffer.push(msg);
-    } else {
-        while(!slave_pre_init_buffer.empty()){
+void send_buffered_messages_to_slave(){
+    while(!slave_pre_init_buffer.empty() && SLAVE_ID != UNKNOWN_ID){
             Msg* m = slave_pre_init_buffer.front();
             slave_pre_init_buffer.pop();
             xQueueSend(h_queue_send_to_slave, &m, portMAX_DELAY);
         }
+}
+
+
+void send_msg_to_slave(Msg* msg){
+    xSemaphoreTake(slave_buffer_mutex, portMAX_DELAY);
+    if(SLAVE_ID == UNKNOWN_ID && msg->type != type_handshake){
+        slave_pre_init_buffer.push(msg);
+    } else {
         xQueueSend(h_queue_send_to_slave, &msg, portMAX_DELAY);
     }
     xSemaphoreGive(slave_buffer_mutex);

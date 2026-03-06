@@ -161,10 +161,8 @@ int get_ids_array_len(){
     return ordered_chain_size;
 }
 
-int* get_ids_array(){
-    int arr[ordered_chain_size];
+void get_ids_array(int arr[]){
     for(int i=0; i<ordered_chain_size; i++){
         arr[i] = ordered_chain[i].my_id;
     }
-    return arr;
 }

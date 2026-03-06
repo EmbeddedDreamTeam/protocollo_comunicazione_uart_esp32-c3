@@ -21,6 +21,7 @@ bool BLINK_ON_RECEIVE_MSG = false;
 bool BLINK_ON_SEND_MSG = false;
 bool BLINK_LOOP_IF_IDS_ARE_KNOWN = false;
 bool BLINK_LOOP_IF_RECEIVED_REPORT = false;
+bool PRINT_RECEIVED_BYTES = false;
 
 // TaskHandle_t h_task_blink_led_once;
 //code x tutti i tipi di comandi diversi
@@ -28,6 +29,7 @@ QueueHandle_t h_queue_command_01;
 QueueHandle_t h_queue_command_02;
 QueueHandle_t h_queue_handshake;
 QueueHandle_t h_queue_report;
+QueueHandle_t h_queue_servo;
 
 //code x inviare messaggi
 QueueHandle_t h_queue_send_to_slave;
