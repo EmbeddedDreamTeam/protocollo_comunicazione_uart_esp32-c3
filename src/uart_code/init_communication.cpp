@@ -110,9 +110,9 @@ void init_comunication(){
   }
 
 
-  //! DOESNT WORK !!!
-  float rr[3] = {1,2,3};
-  convert_servo_instructions(rr, 3);
+  //! REMOVE
+  // float rr[3] = {1,2,3};
+  // convert_servo_instructions(rr, 3);
   
 
   //todo TEST FUNCTION

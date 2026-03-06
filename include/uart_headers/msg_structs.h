@@ -23,6 +23,7 @@ typedef struct{
 typedef enum{
     type_hello,
     type_ACK_hello,
+    type_ping,
 }HandshakeType;
 typedef struct{
     HandshakeType handshake_type;

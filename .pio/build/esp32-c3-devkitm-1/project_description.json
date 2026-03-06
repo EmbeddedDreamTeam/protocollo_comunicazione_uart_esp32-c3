@@ -1,7 +1,7 @@
 {
     "version":            "1.2",
     "project_name":       "prova_espidf",
-    "project_version":    "4737065-dirty",
+    "project_version":    "af76d17-dirty",
     "project_path":       "/home/cesarov/Desktop/protocollo_uart",
     "idf_path":           "/home/cesarov/.platformio/packages/framework-espidf",
     "build_dir":          "/home/cesarov/Desktop/protocollo_uart/.pio/build/esp32-c3-devkitm-1",
@@ -1480,7 +1480,7 @@
             "managed_reqs": [],
             "managed_priv_reqs": [],
             "file": "/home/cesarov/Desktop/protocollo_uart/.pio/build/esp32-c3-devkitm-1/esp-idf/src/libsrc.a",
-            "sources": [ "/home/cesarov/Desktop/protocollo_uart/src/CMakeLists.txt", "/home/cesarov/Desktop/protocollo_uart/src/main.cpp", "/home/cesarov/Desktop/protocollo_uart/src/uart_code/GLOBAL_VARS.cpp", "/home/cesarov/Desktop/protocollo_uart/src/uart_code/bridge_wifi.cpp", "/home/cesarov/Desktop/protocollo_uart/src/uart_code/commands.cpp", "/home/cesarov/Desktop/protocollo_uart/src/uart_code/debug_print.cpp", "/home/cesarov/Desktop/protocollo_uart/src/uart_code/handle_report.cpp", "/home/cesarov/Desktop/protocollo_uart/src/uart_code/handshake_and_report.cpp", "/home/cesarov/Desktop/protocollo_uart/src/uart_code/init_communication.cpp", "/home/cesarov/Desktop/protocollo_uart/src/uart_code/led.cpp", "/home/cesarov/Desktop/protocollo_uart/src/uart_code/uart.cpp", "/home/cesarov/Desktop/protocollo_uart/src/wifi_code/init_wifi.cpp", "/home/cesarov/Desktop/protocollo_uart/src/wifi_code/protocol_manager.cpp", "/home/cesarov/Desktop/protocollo_uart/src/wifi_code/tcp_server.cpp", "/home/cesarov/Desktop/protocollo_uart/src/wifi_code/wifi_manager.cpp" ],
+            "sources": [ "/home/cesarov/Desktop/protocollo_uart/src/CMakeLists.txt", "/home/cesarov/Desktop/protocollo_uart/src/main.cpp", "/home/cesarov/Desktop/protocollo_uart/src/uart_code/GLOBAL_VARS.cpp", "/home/cesarov/Desktop/protocollo_uart/src/uart_code/bridge_wifi.cpp", "/home/cesarov/Desktop/protocollo_uart/src/uart_code/commands.cpp", "/home/cesarov/Desktop/protocollo_uart/src/uart_code/debug_print.cpp", "/home/cesarov/Desktop/protocollo_uart/src/uart_code/handle_handshake.cpp", "/home/cesarov/Desktop/protocollo_uart/src/uart_code/handle_report.cpp", "/home/cesarov/Desktop/protocollo_uart/src/uart_code/init_communication.cpp", "/home/cesarov/Desktop/protocollo_uart/src/uart_code/led.cpp", "/home/cesarov/Desktop/protocollo_uart/src/uart_code/uart.cpp", "/home/cesarov/Desktop/protocollo_uart/src/wifi_code/init_wifi.cpp", "/home/cesarov/Desktop/protocollo_uart/src/wifi_code/protocol_manager.cpp", "/home/cesarov/Desktop/protocollo_uart/src/wifi_code/tcp_server.cpp", "/home/cesarov/Desktop/protocollo_uart/src/wifi_code/wifi_manager.cpp" ],
             "include_dirs": []
         },
         "tcp_transport": {

@@ -17,8 +17,6 @@
 
 using namespace std;
 
-//* DEBUG PRINT
-#define PRINT_RECEIVED_BYTES 1
 
 
 //* _______________________________________ CONSTS e STRUCTS
@@ -61,6 +59,7 @@ extern bool BLINK_ON_RECEIVE_MSG;
 extern bool BLINK_ON_SEND_MSG;
 extern bool BLINK_LOOP_IF_IDS_ARE_KNOWN;
 extern bool BLINK_LOOP_IF_RECEIVED_REPORT;
+extern bool PRINT_RECEIVED_BYTES;
 
 //handles:
 // extern TaskHandle_t h_task_blink_led_once;
@@ -70,6 +69,7 @@ extern QueueHandle_t h_queue_command_01;
 extern QueueHandle_t h_queue_command_02;
 extern QueueHandle_t h_queue_handshake;
 extern QueueHandle_t h_queue_report;
+extern QueueHandle_t h_queue_servo;
 
 //code x inviare messaggi
 extern QueueHandle_t h_queue_send_to_slave;
@@ -100,8 +100,12 @@ void print_msg_struct(Msg* msg);
 void sort_new_msg(Msg *msg);
 void task_receive_uart(void *arg);
 Msg* create_msg(int sender_id, int target_id, MsgType type, Payload payload);
+void send_buffered_messages_to_master();
 void send_msg_to_master(Msg* msg);
+void send_buffered_messages_to_slave();
 void send_msg_to_slave(Msg* msg);
+void task_send_uart(void *arg);
+void init_uart(uart_port_t uart_num, int rx_pin, int tx_pin);
 
 
 //* HANDSHAKE_AND_REPORT.CPP
@@ -115,13 +119,16 @@ void task_handle_report(void* arg);
 //* COMMANDS.CPP
 void task_execute_command_01(void *arg);
 void task_execute_command_02(void *arg);
-void task_send_uart(void *arg);
-void init_uart(uart_port_t uart_num, int rx_pin, int tx_pin);
+void task_execute_servo(void *arg);
 
 
 //*HANDLE_REPORT.CPP
 void recive_new_report(PayloadReport rp);
 void init_report_handler(int slave_of_root_id);
 int get_ids_array_len();
-int* get_ids_array();
+void get_ids_array(int*);
+
+
+//*BRIDGE_WIFI.CPP
+void convert_servo_instructions(float angles_arr[], int len);
 
