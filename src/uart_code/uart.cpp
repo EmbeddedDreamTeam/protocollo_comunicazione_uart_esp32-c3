@@ -108,7 +108,7 @@ void task_receive_uart(void *arg) {
         }
 
         const char* role = get_role_name(selected_uart);
-        if(msg->target_id == SELF_ID || msg->target_id == -1){ 
+        if(msg->target_id == SELF_ID || msg->target_id == -1){ //! in ogni caso se -1 lo prendo io
             printf("ID: %d | RICEVUTO DA: %s | DESTINAZIONE: ME\n", SELF_ID, role);
             print_msg_struct(msg);
             sort_new_msg(msg);

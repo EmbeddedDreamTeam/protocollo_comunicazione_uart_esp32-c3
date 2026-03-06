@@ -123,3 +123,112 @@ void task_handle_report(void* arg){
     recive_new_report(msg->payload.payload_report);
   }
 }
+
+
+
+//todo STO RISCRIVENDO COMPLETAMENTE QUESTO FILE QUA SOTTO, ANCHE HANDLER REPORT é DA RIVEDERE
+
+// // FIX: Added 'volatile' for variables shared between tasks
+// volatile int last_MtS_ack_sender_id = -1;
+// volatile bool received_MtS_ack = false;
+
+// volatile int last_StM_ack_sender_id = -1;
+// volatile bool received_StM_ack = false;
+
+// void task_ping_slave(){ // mando MtS a slave
+//   Payload p;
+//   p.payload_handshake.handshake_type = type_MtS;
+//   Msg* msg = create_msg(SELF_ID, UNKNOWN_ID, type_handshake, p); 
+
+//   // FIX: Reset flag BEFORE sending to avoid race conditions
+//   received_MtS_ack = false; 
+//   send_msg_to_slave(msg);
+
+//   vTaskDelay(pdMS_TO_TICKS(1000));
+  
+//   if(received_MtS_ack){ // slave esiste
+//     if(last_MtS_ack_sender_id != SLAVE_ID){ // è diverso da slave ID
+//       printf(">>> SLAVE CHANGED FROM %d TO %d\n", SLAVE_ID, last_MtS_ack_sender_id);
+
+//       SLAVE_ID = last_MtS_ack_sender_id; // FIX: changed '==' to '='
+//       send_buffered_messages_to_slave();
+//       //todo send_report_to_root()
+//     }
+//   } else { // slave non esiste
+//     printf(">>> SLAVE %d DOESNT RESPOND, I ASSUME HE ISNT THERE (SLAVE_ID = -1)\n", SLAVE_ID);
+//     SLAVE_ID = UNKNOWN_ID; // FIX: changed '==' to '='
+//     //todo send_report_to_root()
+//   }
+// }
+
+// // COMPLETED: Implemented master ping task
+// void task_ping_master(){ 
+//   Payload p;
+//   p.payload_handshake.handshake_type = type_StM;
+//   Msg* msg = create_msg(SELF_ID, UNKNOWN_ID, type_handshake, p); 
+
+//   received_StM_ack = false; 
+//   send_msg_to_master(msg);
+
+//   vTaskDelay(pdMS_TO_TICKS(1000));
+  
+//   if(received_StM_ack){ // master esiste
+//     if(last_StM_ack_sender_id != MASTER_ID){ // è diverso da master ID
+//       printf(">>> MASTER CHANGED FROM %d TO %d\n", MASTER_ID, last_StM_ack_sender_id);
+
+//       MASTER_ID = last_StM_ack_sender_id; 
+//       // todo send_buffered_messages_to_master() se necessario
+//       // todo send_report_to_root()
+//     }
+//   } else { // master non esiste
+//     printf(">>> MASTER %d DOESNT RESPOND, I ASSUME HE ISNT THERE (MASTER_ID = -1)\n", MASTER_ID);
+//     MASTER_ID = UNKNOWN_ID; 
+//     // todo send_report_to_root()
+//   }
+// }
+
+
+// void task_handle_handshakes_ciaooooo(){ //! TOGLI IL CIAOOOO
+//   while(1){
+//     Msg *msg = nullptr;
+//     xQueueReceive(h_queue_handshake, &msg, portMAX_DELAY);
+
+//     if (msg == nullptr) continue; // Safety check
+
+//     if(msg->payload.payload_handshake.handshake_type == type_MtS){ // il master fa ciao rispondigli
+//       if(msg->sender_id != MASTER_ID){
+//         printf(">>> MASTER CHANGED FROM %d TO %d\n", MASTER_ID, msg->sender_id);
+//         MASTER_ID = msg->sender_id; // FIX: changed '==' to '='
+//         //todo send_report_to_root()
+//       }
+
+//       Payload p;
+//       p.payload_handshake.handshake_type = type_MtS_ack;
+//       Msg* nm = create_msg(SELF_ID, UNKNOWN_ID, type_handshake, p);
+//       send_msg_to_master(nm);
+
+//     } else if(msg->payload.payload_handshake.handshake_type == type_MtS_ack){
+//       last_MtS_ack_sender_id = msg->sender_id;
+//       received_MtS_ack = true; // FIX: consistency (true instead of 1)
+
+//     } else if(msg->payload.payload_handshake.handshake_type == type_StM){
+//       if(msg->sender_id != SLAVE_ID){
+//         printf(">>> SLAVE CHANGED FROM %d TO %d\n", SLAVE_ID, msg->sender_id);
+//         SLAVE_ID = msg->sender_id; // FIX: changed '==' to '='
+//         //todo send_report_to_root()
+//       }
+
+//       Payload p;
+//       p.payload_handshake.handshake_type = type_StM_ack;
+//       Msg* nm = create_msg(SELF_ID, UNKNOWN_ID, type_handshake, p);
+//       send_msg_to_slave(nm);
+
+//     } else if(msg->payload.payload_handshake.handshake_type == type_StM_ack){
+//       // COMPLETED: Handled StM_ack logic
+//       last_StM_ack_sender_id = msg->sender_id;
+//       received_StM_ack = true; 
+//     }
+
+//     free(msg);  // OR delete msg; OR vPortFree(msg); depending on your system.
+//   }
+// }
