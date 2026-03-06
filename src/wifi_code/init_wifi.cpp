@@ -49,15 +49,4 @@ void init_wifi(){
     ESP_LOGI(TAG, "Pronto! Connettiti alla rete '%s' e usa:", AP_SSID);
     ESP_LOGI(TAG, "  nc 192.168.4.1 %d", TCP_PORT);
 
-    while (true) {
-        // Heartbeat serve per mostrare che la scehda rimane attiva, meglio utilizzarlo solo per debuggare
-        // if (TcpServer::is_connected()) {
-        //     TcpServer::send("Heartbeat #" + std::to_string(counter++));
-        // }
-        
-        // [SPIEGAZIONE] A differenza di delay() di Arduino che blocca la CPU, 
-        // vTaskDelay dice al sistema operativo: "Metti a dormire questo task per 5000ms 
-        // ed esegui altri processi nel frattempo".
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
 }

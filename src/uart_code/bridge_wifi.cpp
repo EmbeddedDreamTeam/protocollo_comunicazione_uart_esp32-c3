@@ -14,7 +14,8 @@ void convert_servo_instructions(float angles_arr[], int angles_arr_len){
     for(int i=1; i<angles_arr_len; i++){ //!immagino che angles_arr[0] sia x ROOT??
         Payload p;
         p.payload_servo.radians = angles_arr[i];
-        Msg* msg = create_msg(0, i, type_servo, p);
+        int id_i = ids_arr[i];
+        Msg* msg = create_msg(0, id_i, type_servo, p);
         send_msg_to_slave(msg);
     }
 }

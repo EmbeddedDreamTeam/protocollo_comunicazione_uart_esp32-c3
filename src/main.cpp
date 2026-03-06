@@ -3,7 +3,7 @@
 
 extern "C" void app_main(void){
 
-  // init_wifi(); // i have not tested
+  init_wifi(); // i have not tested
 
   //per fare prove con uart, da commentare x usare wifi
   init_comunication(); 
