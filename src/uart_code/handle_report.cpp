@@ -1,3 +1,4 @@
+#include "msg_structs.h"
 #include "utils_communication.h"
 
 #include <iostream>
@@ -12,27 +13,27 @@ using namespace std;
 
 
 /* Global array state */
-static array<PayloadReport, MAX_NODES> ordered_chain;
-static int ordered_chain_size = 0;
+array<PayloadReport, MAX_NODES> ids_array;
+int ids_array_size = 0;
 
-static array<PayloadReport, MAX_NODES> buffer;
-static int buffer_size = 0;
+array<PayloadReport, MAX_NODES> buffer;
+int buffer_size = 0;
 
 /* Returns node information as a string */
-string get_node_info(const PayloadReport& n){
-    char tmp[64];
+const char* get_node_info(const PayloadReport& n){
+    static char tmp[64];
     snprintf(tmp, sizeof(tmp), " {%d, %d, %d},",
              n.my_master_id,
              n.my_id,
              n.my_slave_id);
-    return string(tmp);
+    return tmp;
 }
 
 /* Prints current state of ordered_chain and buffer (debug) */
 void print_debug(){
-    cout << "PRINTING: ORDERED_CHAIN\n";
-    for(int i = 0; i < ordered_chain_size; ++i){
-        cout << get_node_info(ordered_chain[i]) << ' ';
+    cout << "PRINTING: IDS_ARRAY\n";
+    for(int i = 0; i < ids_array_size; ++i){
+        cout << get_node_info(ids_array[i]) << ' ';
     }
 
     cout << "\nPRINTING: BUFFER\n";
@@ -46,123 +47,101 @@ void print_debug(){
 }
 
 /* Removes the element at position ix from the array and updates its length */
-void remove_ix(int ix, array<PayloadReport, MAX_NODES>& arr, int* arr_len){
+void remove_ix(int ix, array<PayloadReport, MAX_NODES>* arr, int* arr_len){
     if(ix < 0 || ix >= *arr_len) return;
     for(int i = ix; i < (*arr_len) - 1; ++i){
-        arr[i] = arr[i+1];
+        (*arr)[i] = (*arr)[i+1];
     }
     (*arr_len)--;
 }
 
-/*
- Adds the leaf only if the BUFFER is empty,
- otherwise the ordering is not finished and it is not added
-*/
-int try_to_add_leaf(){
-    if(buffer_size == 0 && ordered_chain_size > 0){
-        PayloadReport leaf;
-        leaf.my_master_id = ordered_chain[ordered_chain_size-1].my_id;
-        leaf.my_id = ordered_chain[ordered_chain_size-1].my_slave_id;
-        leaf.my_slave_id  = -1;
-        if(ordered_chain_size < MAX_NODES){
-            ordered_chain[ordered_chain_size] = leaf;
-            ordered_chain_size++;
-            return 1;
-        }
-    }
-    return 0;
+
+bool is_new_leaf(PayloadReport p){
+    return ids_array_size>0 && ids_array[ids_array_size-1].my_slave_id == p.my_id && ids_array[ids_array_size-1].my_id == p.my_master_id;
 }
 
-/*
- Handles the possibility of removing the LEAF
- because a new node has been added
-*/
-void push_to_ordered_chain(const PayloadReport n){
-    if(ordered_chain_size > 0 && ordered_chain[ordered_chain_size-1].my_slave_id == -1){
-        ordered_chain_size--;
-    }
 
-    if(ordered_chain_size < MAX_NODES){
-        ordered_chain[ordered_chain_size] = n;
-        ordered_chain_size++;
-    }
-}
+bool try_add_element(PayloadReport p){
+    for(int ix=0; ix<ids_array_size; ix++){ //prova a vedere se è già dentro la chain se sì ritorna
+        PayloadReport* el = &ids_array[ix];
+        if(p.my_id == el->my_id){
 
-/*
- Checks whether n should be added, handling the possibility
- that the last node in the chain is a LEAF
-*/
-bool check_if_slave(const PayloadReport n){
-    // FIX: Changed boundary checks from (size-1 > 0) to (size > 0) 
-    // and from (size-2 > 0) to (size > 1)
-    return (ordered_chain_size > 0 && ordered_chain[ordered_chain_size-1].my_slave_id == n.my_id) ||
-           (ordered_chain_size > 1 && ordered_chain[ordered_chain_size-1].my_slave_id == -1 &&
-            ordered_chain[ordered_chain_size-2].my_slave_id == n.my_id);
-}
-
-/*
- Checks whether there is a node in the buffer
- that is the slave of the last node in ordered_chain
-*/
-void search_in_buffer(){
-    bool found = true;
-    while(found){
-        found = false;
-        for(int ix = 0; ix < buffer_size; ++ix){
-            if(check_if_slave(buffer[ix])){
-                push_to_ordered_chain(buffer[ix]);
-                remove_ix(ix, buffer, &buffer_size);
-                print_debug(); // debug
-                found = true;
-                break; // restart search from beginning
+            if(p.my_master_id == UNKNOWN_ID && p.my_id != ROOT_ID){
+                printf("ERRORE: SOLO ROOT PUO' MANDARE UN REPORT CON my_master = -1, %s\n", get_node_info(p));
+            }else if(p.my_master_id == el->my_master_id && p.my_slave_id == el->my_slave_id){
+                printf("WARNING: HAI MANDATO UN REPORT DUPLICATO DI: %s\n", get_node_info(p));
+                remove_ix(ix, &buffer, &buffer_size);
+            }else if(p.my_master_id != el->my_master_id || p.my_slave_id != el->my_slave_id){
+                ids_array_size = ix; //elimino tutto dopo ix
             }
+
+            break;
+        }
+    }
+    if(is_new_leaf(p) || (p.my_id == 0 && ids_array_size == 0)){ //o è la nuova leaf o è la root
+        ids_array[ids_array_size] = p;
+        ids_array_size++;
+        return true;
+    }
+    return false;
+}
+
+
+void try_resolve_buffer(){
+    for(int i=buffer_size-1; i>=0; i--){
+        // cout << buffer[i].my_id << endl;
+        bool f = try_add_element(buffer[i]);
+        if(f){
+            remove_ix(i, &buffer, &buffer_size);
+            try_resolve_buffer();
+            break;
         }
     }
 }
 
-/*
- Receives a new node; validates its fields and,
- if possible, adds it to ordered_chain or places it in the buffer
-*/
-void recive_new_report(PayloadReport rp){
-    if(rp.my_id < 0 || rp.my_master_id < 0 || rp.my_slave_id < 0){
-        printf("ERROR (INVALID FIELD):\nnew->id = %d\nnew->master_id = %d\nnew->slave_id = %d\n\n",
-               rp.my_id, rp.my_master_id, rp.my_slave_id);
-        return;
-    }
 
-    if(ordered_chain_size > 0 && check_if_slave(rp)){
-        push_to_ordered_chain(rp);
-        search_in_buffer();
-        try_to_add_leaf();
-    } else {
-        if(buffer_size < MAX_NODES){
-            buffer[buffer_size] = rp;
-            buffer_size++;
-        }
-    }
-
-    print_debug(); //in any case
+void recive_new_report(PayloadReport p){
+    buffer[buffer_size] = p;
+    buffer_size++;
+    try_resolve_buffer();
+    print_debug();
 }
 
 
-void init_report_handler(int slave_of_root_id){
+void task_handle_report(void* arg){
+  if(SELF_ID != ROOT_ID){ //it shouldn't be the case.
+    vTaskDelete(nullptr);
+  }
+
+  while(1){
+  Msg* msg = nullptr;
+  xQueueReceive(h_queue_report, &msg, portMAX_DELAY);
+    // if(BLINK_LOOP_IF_RECEIVED_REPORT && msg->type == type_report){
+    //   resume_loop_blink();
+    // }
+    printf("REPORT: SLAVE=%d, MY=%d, MASTER=%d\n", msg->payload.payload_report.my_slave_id, msg->payload.payload_report.my_id, msg->payload.payload_report.my_master_id);
+    recive_new_report(msg->payload.payload_report);
+  }
+}
+
+
+void init_report_handler(){
     PayloadReport root;
     root.my_master_id = -1;
     root.my_id = ROOT_ID;
-    root.my_slave_id  = slave_of_root_id;
-    push_to_ordered_chain(root);
-    try_to_add_leaf();
+    root.my_slave_id = -1;
+    ids_array[0] = root;
+    ids_array_size = 1;
     print_debug();
 }
 
 
 int get_ids_array_len(){
-    return ordered_chain_size;
+    return ids_array_size;
 }
 
 void get_ids_array(int arr[]){
-    for(int i=0; i<ordered_chain_size; i++){
-        arr[i] = ordered_chain[i].my_id;
+    for(int i=0; i<ids_array_size; i++){
+        arr[i] = ids_array[i].my_id;
     }
 }

@@ -104,8 +104,9 @@ void init_comunication(){
 
   //*HANDSHAKE
   if(!SET_DEFAULT_IDS){
-    xTaskCreate(task_handle_handshake, "task_handle_handshake", 5000, nullptr, 2, nullptr);
-    xTaskCreate(task_send_hello_msg_to_master, "task_send_hello_msg_to_master", 5000, nullptr, 2, nullptr);
+    xTaskCreate(task_ping_slave, "task_ping_slave", 5000, nullptr, 2, nullptr);
+    xTaskCreate(task_ping_master, "task_ping_master", 5000, nullptr, 2, nullptr);
+    xTaskCreate(task_handle_handshakes, "task_handle_handshakes", 5000, nullptr, 2, nullptr);
     xTaskCreate(task_handle_report, "task_handle_report", 5000, nullptr, 2, nullptr);
   }
 

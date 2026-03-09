@@ -108,25 +108,22 @@ void task_send_uart(void *arg);
 void init_uart(uart_port_t uart_num, int rx_pin, int tx_pin);
 
 
-//* HANDSHAKE_AND_REPORT.CPP
-void send_handshake_msg_to_slave();
-void send_handshake_type_report_to_root();
-void task_handle_handshake(void *arg);
-void task_send_hello_msg_to_master(void *arg);
+//* HANDLE_HANDSHAKE.CPP
+void task_ping_slave(void* info);
+void task_ping_master(void* info);
+void task_handle_handshakes(void* info);
+
+
+//*HANDLE_REPORT.CPP
 void task_handle_report(void* arg);
+int get_ids_array_len();
+void get_ids_array(int arr[]);
 
 
 //* COMMANDS.CPP
 void task_execute_command_01(void *arg);
 void task_execute_command_02(void *arg);
 void task_execute_servo(void *arg);
-
-
-//*HANDLE_REPORT.CPP
-void recive_new_report(PayloadReport rp);
-void init_report_handler(int slave_of_root_id);
-int get_ids_array_len();
-void get_ids_array(int*);
 
 
 //*BRIDGE_WIFI.CPP
