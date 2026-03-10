@@ -31,7 +31,8 @@ void init_comunication(){
   
   //todo for test
   
-  SELF_ID = 0; 
+  SELF_ID = 2; 
+
   bool SET_DEFAULT_IDS = 0; //OTHERWISE IT ATTEMPTS TO SEND HANDSHAKES
   bool TEST_FUN = 0;
 
@@ -66,7 +67,7 @@ void init_comunication(){
 
 
   // esp_task_wdt_deinit();
-  vTaskDelay(pdMS_TO_TICKS(15000)); //!ATTENTO - RIMUOVERE O SETTARE A 1500
+  vTaskDelay(pdMS_TO_TICKS(10000)); //!ATTENTO - RIMUOVERE O SETTARE A 1500
   printf("\nSTART START START START START START START START!!!\n");
 
   //*LED SETUP
@@ -106,8 +107,9 @@ void init_comunication(){
   if(!SET_DEFAULT_IDS){
     xTaskCreate(task_ping_slave, "task_ping_slave", 5000, nullptr, 2, nullptr);
     xTaskCreate(task_ping_master, "task_ping_master", 5000, nullptr, 2, nullptr);
-    xTaskCreate(task_handle_handshakes, "task_handle_handshakes", 5000, nullptr, 2, nullptr);
+    xTaskCreate(task_handle_handshakes, "task_handle_handshakes", 5000, nullptr, 24, nullptr);
     xTaskCreate(task_handle_report, "task_handle_report", 5000, nullptr, 2, nullptr);
+    init_report_handler();
   }
 
 

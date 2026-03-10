@@ -61,18 +61,18 @@ bool is_new_leaf(PayloadReport p){
 }
 
 
-bool try_add_element(PayloadReport p){
-    for(int ix=0; ix<ids_array_size; ix++){ //prova a vedere se è già dentro la chain se sì ritorna
-        PayloadReport* el = &ids_array[ix];
+bool try_add_element(PayloadReport p, int buffer_ix){
+    for(int ids_array_ix=0; ids_array_ix<ids_array_size; ids_array_ix++){ //prova a vedere se è già dentro la chain se sì ritorna
+        PayloadReport* el = &ids_array[ids_array_ix];
         if(p.my_id == el->my_id){
 
-            if(p.my_master_id == UNKNOWN_ID && p.my_id != ROOT_ID){
-                printf("ERRORE: SOLO ROOT PUO' MANDARE UN REPORT CON my_master = -1, %s\n", get_node_info(p));
-            }else if(p.my_master_id == el->my_master_id && p.my_slave_id == el->my_slave_id){
+            if(p.my_master_id == el->my_master_id && p.my_slave_id == el->my_slave_id){
                 printf("WARNING: HAI MANDATO UN REPORT DUPLICATO DI: %s\n", get_node_info(p));
-                remove_ix(ix, &buffer, &buffer_size);
-            }else if(p.my_master_id != el->my_master_id || p.my_slave_id != el->my_slave_id){
-                ids_array_size = ix; //elimino tutto dopo ix
+                remove_ix(buffer_ix, &buffer, &buffer_size); 
+
+            }if(p.my_master_id != el->my_master_id || p.my_slave_id != el->my_slave_id){
+                printf("SOSTITUISCO IN IDS_ARRAY E METTO: %s\n", get_node_info(p));
+                ids_array_size = ids_array_ix; //elimino tutto dopo ix
             }
 
             break;
@@ -88,11 +88,11 @@ bool try_add_element(PayloadReport p){
 
 
 void try_resolve_buffer(){
-    for(int i=buffer_size-1; i>=0; i--){
+    for(int buffer_ix=buffer_size-1; buffer_ix>=0; buffer_ix--){
         // cout << buffer[i].my_id << endl;
-        bool f = try_add_element(buffer[i]);
+        bool f = try_add_element(buffer[buffer_ix], buffer_ix);
         if(f){
-            remove_ix(i, &buffer, &buffer_size);
+            remove_ix(buffer_ix, &buffer, &buffer_size);
             try_resolve_buffer();
             break;
         }
@@ -101,6 +101,11 @@ void try_resolve_buffer(){
 
 
 void recive_new_report(PayloadReport p){
+    if(p.my_master_id == UNKNOWN_ID && p.my_id != ROOT_ID){
+        printf("ERRORE: SOLO ROOT PUO' MANDARE UN REPORT CON my_master = -1, %s\n", get_node_info(p));
+        return;
+    }
+
     buffer[buffer_size] = p;
     buffer_size++;
     try_resolve_buffer();

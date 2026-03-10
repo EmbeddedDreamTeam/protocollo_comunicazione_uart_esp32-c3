@@ -25,31 +25,83 @@ const char* get_role_name(int role) {
 }
 
 
+
+
+#include <stdio.h>
+#include <stdio.h>
+
+static const char* msg_type_to_str(int t){
+  switch(t){
+    case type_command_01: return "COMMAND_01";
+    case type_command_02: return "COMMAND_02";
+    case type_handshake:  return "HANDSHAKE";
+    case type_report:     return "REPORT";
+    case type_servo:      return "SERVO";
+    default:              return "UNKNOWN_TYPE";
+  }
+}
+
+static const char* handshake_type_to_str(int h){
+  switch(h){
+    case type_StM:     return "StM";
+    case type_StM_ack: return "StM_ack";
+    case type_MtS:     return "MtS";
+    case type_MtS_ack: return "MtS_ack";
+    default:           return "UNKNOWN_HANDSHAKE";
+  }
+}
+
 void print_msg_struct(Msg* msg){
+
+  if(msg == nullptr){
+    printf("PRINTING STRUCT MESSAGE: NULL\n\n");
+    return;
+  }
+
   printf("PRINTING STRUCT MESSAGE:\n");
-  printf("HEAP PT: %p \n", (void*)msg);
+  printf("HEAP PT: %p\n", (void*)msg);
   printf("Sender: %d\n", msg->sender_id);
   printf("Target: %d\n", msg->target_id);
-  printf("Type [0:type_command_01, 1:type_command_02, 2:type_handshake, 3:payload_report, 4:type_servo]: %d\n", msg->type);
+  printf("Type: %s\n", msg_type_to_str(msg->type));
   printf("Header: %d\n", msg->header);
   printf("Footer: %lu\n", (unsigned long)msg->footer);
 
-  if (msg->type == type_command_01) {
-    printf("str1: %s\n", msg->payload.payload_command_01.str1);
-    printf("str2: %s\n", msg->payload.payload_command_01.str2);
-  } else if (msg->type == type_command_02) {
-    printf("num1: %d\n", msg->payload.payload_command_02.num1);
-    printf("num2: %f\n", msg->payload.payload_command_02.num2);
-  } else if (msg->type == type_handshake) {
-    printf("Handshake Type [0:type_hello, 1:type_ACK_hello]: %d\n", msg->payload.payload_handshake.handshake_type);
-  } else if (msg->type == type_report) {
-    printf("my_slave_id: %d\n", msg->payload.payload_report.my_slave_id);
-    printf("my_id: %d\n", msg->payload.payload_report.my_id);
-    printf("my_master_id: %d\n", msg->payload.payload_report.my_master_id);
-  } else if (msg->type == type_servo) {
-    printf("servo radians: %f\n", msg->payload.payload_servo.radians);
-  } else {
-    printf("ERRORE: type non riconosciuto\n");
+  switch(msg->type){
+
+    case type_command_01:
+      printf("Payload (COMMAND_01)\n");
+      printf("str1: %s\n", msg->payload.payload_command_01.str1);
+      printf("str2: %s\n", msg->payload.payload_command_01.str2);
+      break;
+
+    case type_command_02:
+      printf("Payload (COMMAND_02)\n");
+      printf("num1: %d\n", msg->payload.payload_command_02.num1);
+      printf("num2: %f\n", msg->payload.payload_command_02.num2);
+      break;
+
+    case type_handshake:
+      printf("Payload (HANDSHAKE)\n");
+      printf("Handshake Type: %s\n",
+             handshake_type_to_str(
+               msg->payload.payload_handshake.handshake_type));
+      break;
+
+    case type_report:
+      printf("Payload (REPORT)\n");
+      printf("my_slave_id: %d\n", msg->payload.payload_report.my_slave_id);
+      printf("my_id: %d\n", msg->payload.payload_report.my_id);
+      printf("my_master_id: %d\n", msg->payload.payload_report.my_master_id);
+      break;
+
+    case type_servo:
+      printf("Payload (SERVO)\n");
+      printf("servo radians: %f\n", msg->payload.payload_servo.radians);
+      break;
+
+    default:
+      printf("ERROR: unknown message type\n");
   }
+
   printf("\n");
 }

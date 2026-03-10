@@ -107,6 +107,7 @@ void task_receive_uart(void *arg) {
             wake_task_blink_led_once();
         }
 
+        printf("\n================[RECEIVE UART]================\n");
         const char* role = get_role_name(selected_uart);
         if(msg->target_id == SELF_ID || msg->target_id == -1){ //! in ogni caso se -1 lo prendo io
             printf("ID: %d | RICEVUTO DA: %s | DESTINAZIONE: ME\n", SELF_ID, role);
@@ -125,8 +126,9 @@ void task_receive_uart(void *arg) {
               send_msg_to_master(msg);
             }
         }
+
+        printf("================[__RECEIVE UART]================\n");
         
-        printf("==========================================\n");
         fflush(stdout);
     }
 }
@@ -151,7 +153,7 @@ void task_send_uart(void *arg){
     int bytes_sent = uart_write_bytes(selected_uart, (const void*)msg, sizeof(Msg));
     
 
-    printf("\n====================\n");
+    printf("\n================[SEND UART]================\n");
     const char* role = get_role_name(selected_uart);
     printf("SONO: %d, HO INVIATO INVIO A: %s, IL SEGUENTE MESSAGGIO:\n", SELF_ID, role);
     print_msg_struct(msg);
@@ -164,7 +166,7 @@ void task_send_uart(void *arg){
     if(BLINK_ON_SEND_MSG){
       wake_task_blink_led_once();
     }
-    printf("====================\n");
+    printf("================[__SEND UART]================\n");
 
     delete msg; 
   } 
@@ -230,7 +232,7 @@ void send_buffered_messages_to_master(){
 void send_msg_to_master(Msg* msg){
     xSemaphoreTake(master_buffer_mutex, portMAX_DELAY);
 
-    if(MASTER_ID == UNKNOWN_ID && msg->type != type_handshake){
+    if(MASTER_ID == UNKNOWN_ID && msg->type != type_handshake){ //!type_handshake passa in ogni caso
         master_pre_init_buffer.push(msg);
     } else {
         xQueueSend(h_queue_send_to_master, &msg, portMAX_DELAY);
@@ -253,7 +255,7 @@ void send_buffered_messages_to_slave(){
 
 void send_msg_to_slave(Msg* msg){
     xSemaphoreTake(slave_buffer_mutex, portMAX_DELAY);
-    if(SLAVE_ID == UNKNOWN_ID && msg->type != type_handshake){
+    if(SLAVE_ID == UNKNOWN_ID && msg->type != type_handshake){ //!type_handshake passa in ogni caso
         slave_pre_init_buffer.push(msg);
     } else {
         xQueueSend(h_queue_send_to_slave, &msg, portMAX_DELAY);

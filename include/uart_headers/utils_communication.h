@@ -118,6 +118,8 @@ void task_handle_handshakes(void* info);
 void task_handle_report(void* arg);
 int get_ids_array_len();
 void get_ids_array(int arr[]);
+void init_report_handler();
+void recive_new_report(PayloadReport p);
 
 
 //* COMMANDS.CPP
