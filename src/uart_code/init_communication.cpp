@@ -1,4 +1,5 @@
 #include "utils_communication.h"
+#include "protocol_manager.h"
 
 //* _______________________________________ MAIN e TEST
 void test_task(void* info){
@@ -31,26 +32,22 @@ void init_comunication(){
   
   //todo for test
   
-  SELF_ID = 2; 
+  SELF_ID = 0; 
+
 
   bool SET_DEFAULT_IDS = 0; //OTHERWISE IT ATTEMPTS TO SEND HANDSHAKES
   bool TEST_FUN = 0;
 
   PRINT_RECEIVED_BYTES = 0;
+  BLINK_ON_RECEIVE_MSG = 1;
 
   int32_t L_DELAY = 5000;
 
   if(SELF_ID == 0){ 
     MASTER_ID = -1;
 
-    BLINK_LOOP_IF_IDS_ARE_KNOWN = 0;
-    BLINK_LOOP_IF_RECEIVED_REPORT = 1;
-
     if(SET_DEFAULT_IDS) SLAVE_ID = 1;
   }else if(SELF_ID == 1){
-
-    BLINK_LOOP_IF_IDS_ARE_KNOWN = 1;
-    BLINK_LOOP_IF_RECEIVED_REPORT = 0;
 
     if(SET_DEFAULT_IDS){
       MASTER_ID = 0;
@@ -74,7 +71,7 @@ void init_comunication(){
   init_led();
   set_loop_blink_delay(L_DELAY);
   //*LED DEFAULT BEHAVIOUR IS BLINKING IF NOTHING ELSE
-  if(!BLINK_ON_RECEIVE_MSG && !BLINK_ON_RECEIVE_MSG){
+  if(!BLINK_ON_RECEIVE_MSG){
     resume_loop_blink();
   }
 

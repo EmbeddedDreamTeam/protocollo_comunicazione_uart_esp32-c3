@@ -25,7 +25,7 @@ void init_wifi(){
     WifiManager::init_ap(AP_SSID, AP_PASSWORD);
 
     // 3. Inizializza protocollo — invia subito "SERVOS 3" al computer alla connessione
-    ProtocolManager::init(NUM_SERVOS, [](const std::vector<float>& angles) {
+    ProtocolManager::init(1, [](const std::vector<float>& angles) { //! ho tolto NUM_SERVOS e messo 1
         ESP_LOGI(TAG, "Comando servo ricevuto:");
         for (int i = 0; i < (int)angles.size(); i++) {
             ESP_LOGI(TAG, "  Servo %d → %d°", i, angles[i]);

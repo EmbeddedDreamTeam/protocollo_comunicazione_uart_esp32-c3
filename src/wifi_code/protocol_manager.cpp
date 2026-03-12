@@ -37,7 +37,7 @@ void ProtocolManager::init(uint8_t num_servos, ServoCommandCallback on_servo_com
     // set_num_servos() verrà chiamato dalla on_connect del TcpServer.
 }
 
-void ProtocolManager::set_num_servos(uint8_t num_servos)
+void ProtocolManager::set_num_servos(uint8_t num_servos) //!HERE
 {
     s_num_servos = num_servos;
 
