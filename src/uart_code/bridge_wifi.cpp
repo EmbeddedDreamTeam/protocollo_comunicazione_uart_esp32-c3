@@ -1,22 +1,36 @@
 #include "utils_communication.h"
 
-void convert_servo_instructions(float angles_arr[], int angles_arr_len){
-    int ids_arr_len = get_ids_array_len();
-    int ids_arr[ids_arr_len];
+
+// Helper to convert degrees to radians if your servo logic requires it
+#ifndef M_PI
+    #define M_PI 3.14159265358979323846
+#endif
+
+void convert_servo_instructions(const std::vector<float>& angles){
+    int total_nodes = get_ids_array_len();
+    int ids_arr[total_nodes];
     get_ids_array(ids_arr);
 
-    Payload p;
-    p.payload_servo.radians = angles_arr[0];
-    Msg* msg = create_msg(0, 0, type_servo, p);
-    sort_new_msg(msg);
-    //todo add to servo queue
+    // The vector 'angles' comes from the computer. 
+    // We assume angles[0] is for Root (ID 0), angles[1] for first Slave, etc.
+    for (size_t i = 0; i < angles.size(); i++) {
+        if (i >= (size_t)total_nodes) break; // Safety check
 
-    for(int i=1; i<angles_arr_len; i++){ //!immagino che angles_arr[0] sia x ROOT??
         Payload p;
-        p.payload_servo.radians = angles_arr[i];
-        int id_i = ids_arr[i];
-        Msg* msg = create_msg(0, id_i, type_servo, p);
-        send_msg_to_slave(msg);
+        // Convert degree (uint16_t) to Radians (float) as expected by your Payload struct
+        p.payload_servo.radians = angles[i] * (M_PI / 180.0f);
+        
+        int target_id = ids_arr[i];
+
+        if (target_id == SELF_ID) {
+            // It's for the Root: send to the local servo queue
+            Msg* msg = create_msg(SELF_ID, SELF_ID, type_servo, p);
+            sort_new_msg(msg); 
+        } else {
+            // It's for a Slave: route it through UART
+            Msg* msg = create_msg(SELF_ID, target_id, type_servo, p);
+            send_msg_to_slave(msg);
+        }
     }
 }
 

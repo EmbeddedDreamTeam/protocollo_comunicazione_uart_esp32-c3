@@ -51,7 +51,7 @@ void ProtocolManager::handle_incoming(const std::string& line)
     ESP_LOGI(TAG, "<- Computer: %s", line.c_str());
 
     // Parse space-separated integers
-    std::vector<uint16_t> angles;
+    std::vector<float> angles;
     std::istringstream stream(line);
     std::string token;
 
@@ -72,13 +72,16 @@ void ProtocolManager::handle_incoming(const std::string& line)
             return;
         }
 
-        angles.push_back(static_cast<uint16_t>(value));
+        angles.push_back(static_cast<float>(value));
 
         if (angles.size() > MAX_SERVOS) {
             reply("ERROR too_many_values — max allowed is " +
                   std::to_string(MAX_SERVOS));
             return;
         }
+        // send the angles to the corresponding cubes
+        // the values stored in array correspond to the order of the receiving cubes
+
     }
 
     if (angles.empty()) {

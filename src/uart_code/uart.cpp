@@ -184,6 +184,7 @@ void init_uart(uart_port_t uart_num, int rx_pin, int tx_pin) {
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
         .rx_flow_ctrl_thresh = 122, 
         .source_clk = UART_SCLK_APB,
+        .flags = 0,
     };
     
     uart_driver_install(uart_num, U_BUF_SIZE * 2, 0, 0, nullptr, 0);

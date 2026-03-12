@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <queue>
+#include <vector>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -129,5 +130,5 @@ void task_execute_servo(void *arg);
 
 
 //*BRIDGE_WIFI.CPP
-void convert_servo_instructions(float angles_arr[], int len);
+void convert_servo_instructions(const std::vector<float>& angles);
 
