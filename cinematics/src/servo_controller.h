@@ -35,9 +35,7 @@ static QueueHandle_t xServoQueue = NULL; //queue handler
 extern TaskHandle_t xTaskHandle; //task handler
 esp_err_t set_servo_pos(float rad);
 esp_err_t move_servo_speed(float rad, float speed); //speed is in rad/s
-void move_servo_speed_task(void * pvParameters);
 float rad_from_deg(int32_t degrees);
-void servo_timer_init();
 void servo_init();
 
 #endif

@@ -2,6 +2,14 @@
 
 TaskHandle_t xTaskHandle = NULL;
 
+void servo_timer_init();
+void move_servo_speed_task(void * pvParameters);
+void send_movement_ack(float rad);
+
+void send_movement_ack(float rad){
+    //TODO
+}
+
 void servo_timer_init(){
     servo_data.duty_res =ledc_find_suitable_duty_resolution(80000000, 50);//auto clock freq of 80MHz and timer freq of 50Hz, the most common servo frequency
     ledc_timer_config_t timer_config ={
@@ -31,6 +39,7 @@ float rad_from_deg(int32_t degrees){
 
 //this type of servo has a frequency of 50Hz and, considering the trimming zone they accept a signal that
 // ranges from ~351ms to ~2640 ms  that corresponde to a range of motion of nearly ~309 degrees 
+/// NOTE this function isn't meant to be used alone, it is used by the move_servo_speed function to set the position of the servo, if you want to set the position directly use move_servo_speed with speed=1.0f
 esp_err_t set_servo_pos(float rad){
     if (rad>=servo_data.min_pos && rad<=servo_data.max_pos){
         double mid_point=(servo_data.sgnl_min_duty+(servo_data.sgnl_max_duty-servo_data.sgnl_min_duty)/2.0);
