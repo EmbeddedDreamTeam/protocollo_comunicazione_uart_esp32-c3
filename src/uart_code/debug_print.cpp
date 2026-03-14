@@ -31,6 +31,7 @@ static const char* msg_type_to_str(int t){
     case type_handshake:  return "HANDSHAKE";
     case type_report:     return "REPORT";
     case type_servo:      return "SERVO";
+    case type_servo_ack:  return "SERVO_ACK";
     default:              return "UNKNOWN_TYPE";
   }
 }
@@ -89,6 +90,11 @@ void print_msg_struct(Msg* msg){
       break;
 
     case type_servo:
+      printf("Payload (SERVO)\n");
+      printf("servo radians: %f\n", msg->payload.payload_servo.radians);
+      break;
+
+    case type_servo_ack:
       printf("Payload (SERVO)\n");
       printf("servo radians: %f\n", msg->payload.payload_servo.radians);
       break;

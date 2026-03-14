@@ -2,6 +2,9 @@
 using namespace std;
 
 
+
+//*BRIDGE WIFI
+
 // Helper to convert degrees to radians if your servo logic requires it
 #ifndef M_PI
     #define M_PI 3.14159265358979323846
@@ -41,3 +44,10 @@ void convert_servo_instructions(const std::vector<float>& angles){
 }
 
 
+//*BRIDGE ???
+void send_servo_movement_ack_to_root(int my_id, float radians){
+    Payload p;
+    p.payload_servo.radians = radians;
+    Msg* msg = create_msg(my_id, ROOT_ID, type_servo_ack, p);
+    send_msg_to_master(msg);
+}

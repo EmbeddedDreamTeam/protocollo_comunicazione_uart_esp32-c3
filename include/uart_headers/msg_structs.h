@@ -19,7 +19,6 @@ typedef struct{
 }PayloadCommand02;
 //todo _just for mockup
 
-
 typedef enum{
     type_StM,
     type_StM_ack,
@@ -60,6 +59,7 @@ typedef enum{
     type_handshake,
     type_report,
     type_servo,
+    type_servo_ack,
 }MsgType;
 typedef struct __attribute__((packed)){
     uint8_t header;

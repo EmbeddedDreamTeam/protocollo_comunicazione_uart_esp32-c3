@@ -51,19 +51,22 @@ void init_uart(uart_port_t uart_num, int rx_pin, int tx_pin) {
 
 //* _______________________________________UART RECEIVE
 void sort_new_msg(Msg *msg){
-  if(msg->type == type_command_01){
-    xQueueSend(h_queue_command_01, &msg, portMAX_DELAY);
-  }else if (msg->type == type_command_02){
-    xQueueSend(h_queue_command_02, &msg, portMAX_DELAY);
-  }else if (msg->type == type_handshake){
-    xQueueSend(h_queue_handshake, &msg, portMAX_DELAY);
-  }else if(msg->type == type_report){
-    xQueueSend(h_queue_report, &msg, portMAX_DELAY);
-  }else if(msg->type == type_servo){
-    xQueueSend(h_queue_servo, &msg, portMAX_DELAY);
-  }else{
-    printf("ERRORE: [sort_new_msg] type: %i , non esiste\n", msg->type);
-  }
+    if(msg->type == type_command_01){
+        xQueueSend(h_queue_command_01, &msg, portMAX_DELAY);
+    }else if (msg->type == type_command_02){
+        xQueueSend(h_queue_command_02, &msg, portMAX_DELAY);
+    }else if (msg->type == type_handshake){
+        xQueueSend(h_queue_handshake, &msg, portMAX_DELAY);
+    }else if(msg->type == type_report){
+        xQueueSend(h_queue_report, &msg, portMAX_DELAY);
+    }else if(msg->type == type_servo){
+        xQueueSend(h_queue_servo, &msg, portMAX_DELAY);
+    }else if(msg->type == type_servo_ack){
+        printf("else if(msg->type == type_servo_ack){ !!! !!! !!!\n");
+        // xQueueSend(h_queue_servo, &msg, portMAX_DELAY); //!DOESNT DELETE THE MSG !!!! 
+    }else{
+        printf("ERRORE: [sort_new_msg] type: %i , non esiste\n", msg->type);
+    }
 }
 
 
@@ -146,7 +149,7 @@ void task_receive_uart(void *arg) {
             wake_task_blink_led_once();
         }
 
-        // printf("AHHHHHHHH blockprint_mutex: %p\n", block_print_mutex);
+        // printf("blockprint_mutex: %p\n", (void*)block_print_mutex);
         // xSemaphoreTake(block_print_mutex, portMAX_DELAY);
         printf("\n================[RECEIVE UART]================\n");
         const char* role = get_role_name(selected_uart);
