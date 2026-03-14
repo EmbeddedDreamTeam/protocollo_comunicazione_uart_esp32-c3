@@ -16,20 +16,22 @@ typedef struct {
     float speed;
 } ServoTaskParams;
 
-struct {
+typedef struct {
     uint32_t duty_res;
-    int8_t gpio=3;
-    uint32_t sgnl_min_duty=500;
-    uint32_t sgnl_max_duty=2500;
+    int8_t gpio;
+    uint32_t sgnl_min_duty;
+    uint32_t sgnl_max_duty;
     // these values ranges from -5/6*PI rads to +5/6*PI corresponding to -150 degrees to +150 degrees,
     // with a total range of motion of 300 degrees, not ~309 in order to have some margin
     // because if the potentiometer barely exceeds this value, the servo will execute a +360 degrees rotation
     // in order to go back to the setted position
-    float min_pos=-30.0/36.0*M_PI;
-    float max_pos=30.0/36.0*M_PI;
+    float min_pos;
+    float max_pos;
     std::atomic<float> current_pos; //this ensure thread safety
-    float max_speed=5.2;
-}servo_data;
+    float max_speed;
+} ServoData;
+
+extern ServoData servo_data;
 
 static QueueHandle_t xServoQueue = NULL; //queue handler
 extern TaskHandle_t xTaskHandle; //task handler

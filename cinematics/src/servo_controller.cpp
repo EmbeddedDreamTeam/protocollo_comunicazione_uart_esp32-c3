@@ -2,6 +2,18 @@
 
 TaskHandle_t xTaskHandle = NULL;
 
+// single definition of servo_data (shared across translation units)
+ServoData servo_data = {
+    .duty_res = 0,                // will be set by servo_timer_init()
+    .gpio = 3,
+    .sgnl_min_duty = 500,
+    .sgnl_max_duty = 2500,
+    .min_pos = (float)(-30.5/36.0*M_PI),
+    .max_pos = (float)( 30.5/36.0*M_PI),
+    .current_pos = std::atomic<float>(0.0f),
+    .max_speed = 5.2f
+};
+
 void servo_timer_init();
 void move_servo_speed_task(void * pvParameters);
 void send_movement_ack(float rad);
@@ -45,7 +57,7 @@ esp_err_t set_servo_pos(float rad){
         ESP_LOGI("SERVO_API", "Posizione impostata: %.2f rad", rad);
         double mid_point=servo_data.sgnl_min_duty+(servo_data.sgnl_max_duty-servo_data.sgnl_min_duty)/2.0;
         //double time= mid_point+rad/servo_data.max_pos*(servo_data.sgnl_max_duty-servo_data.sgnl_min_duty)/2.0; //calculating the signal time
-        double time= mid_point+rad/(1.5*M_PI)*(servo_data.sgnl_max_duty-servo_data.sgnl_min_duty)/2; //calculating the signal time
+        double time= mid_point+rad/(1.5*M_PI)*(servo_data.sgnl_max_duty-servo_data.sgnl_min_duty); //calculating the signal time
         uint32_t max_duty = (1 << servo_data.duty_res);
         uint32_t duty= (uint32_t)(time/20000.0*max_duty); //fraction of the period in micro-seconds
         ledc_set_duty(
@@ -54,7 +66,9 @@ esp_err_t set_servo_pos(float rad){
             duty
         );
         ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
-        servo_data.current_pos=rad;
+        // Update the logical current position (this is the commanded position,
+        // not a physical feedback sample). Use atomic store for clarity.
+        servo_data.current_pos.store(rad);
         return ESP_OK;
     }
     else{
@@ -67,26 +81,31 @@ void move_servo_speed_task(void * pvParameters) {
     ServoTaskParams cmd;
     float current_rad = servo_data.current_pos;
     
-    // updating frequency of 50Hz
-    TickType_t xLastWakeTime = xTaskGetTickCount(); //The count of ticks since vTaskStartScheduler was called.
+    TickType_t xLastWakeTime;
     const TickType_t xFrequency = pdMS_TO_TICKS(20);
 
     while (1) {
-        // receiving a message from the queue => 0 busy waiting
-        // if there is no message the task will wait to receive one for maximun portMAX_DELAY tiks
         if (xQueueReceive(xServoQueue, &cmd, portMAX_DELAY)) {
             
-            //ESP_LOGI("SERVO_TASK", "Nuovo target ricevuto: %.2f rad", cmd.target_rad);
+            // initializing time: count of ticks since vTaskStartScheduler was called
+            xLastWakeTime = xTaskGetTickCount();
+            TickType_t xPreviousFrameTick = xLastWakeTime;
 
             while (fabs(current_rad - cmd.target_rad) > 0.005f) {
+                // new commands check
                 ServoTaskParams next_cmd;
-                if (xQueueReceive(xServoQueue, &next_cmd, 0) == pdTRUE) { //if there is a new message
-                    cmd = next_cmd; // updating new target
-                    //ESP_LOGI("SERVO_TASK", "Target aggiornato in corsa: %.2f rad", cmd.target_rad);
+                if (xQueueReceive(xServoQueue, &next_cmd, 0) == pdTRUE) {
+                    cmd = next_cmd;
                 }
-                // Calcculating steps
-                // 0.02 = 20ms period
-                float step = cmd.speed * 0.02f; 
+
+                // calculating real dt (effective time elapsed)
+                TickType_t xCurrentTick = xTaskGetTickCount();
+                // calculating real time elapsed in seconds
+                float dt = (float)(xCurrentTick - xPreviousFrameTick) * portTICK_PERIOD_MS / 1000.0f;
+                xPreviousFrameTick = xCurrentTick;
+
+                // step based on real time elapsed
+                float step = cmd.speed * dt; 
                 
                 if (current_rad < cmd.target_rad) {
                     current_rad += step;
@@ -98,9 +117,9 @@ void move_servo_speed_task(void * pvParameters) {
 
                 set_servo_pos(current_rad);
 
+                // periodically waking this function a xFrequency rate
                 vTaskDelayUntil(&xLastWakeTime, xFrequency);
             }
-            //ESP_LOGI("SERVO_TASK", "Target raggiunto.");
         }
     }
 }
@@ -127,6 +146,9 @@ esp_err_t move_servo_speed(float rad, float speed){
 
 void servo_init(){
     servo_timer_init();
+
+    // ensure logical current position has a known value before task start
+    servo_data.current_pos.store(0.0f);
 
     // creating the queue with the designed lenght
     xServoQueue = xQueueCreate(SERVO_QUEUE_LEN, sizeof(ServoTaskParams));
