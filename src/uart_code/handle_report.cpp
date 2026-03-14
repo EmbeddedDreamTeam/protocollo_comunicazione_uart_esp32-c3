@@ -1,5 +1,5 @@
 #include "msg_structs.h"
-#include "utils_communication.h"
+#include "utils_uart_comms.h"
 #include "protocol_manager.h"
 
 #include <iostream>
@@ -59,8 +59,8 @@ void compute_ids_array(){
             // print_node_info(next_node);
 
             if(next_node.my_master_id == curr_node.my_id){ //sono d'accordo sull essere MASTER e SLAVE
-                cout << "in" << endl;
-                print_node_info(curr_node);
+                // cout << "in" << endl;
+                // print_node_info(curr_node);
                 ids_array[ids_array_len] = next_node_id;
                 ids_array_len++;
 
@@ -91,16 +91,36 @@ int get_ids_array_len(){
     return ids_array_len;
 }
 
-void get_ids_array(int arr[], int len){ //copia ids_array in arr
+void get_ids_array(int* arr, int len){ //copia ids_array in arr
     for(int i=0; i<min(len, ids_array_len); i++){
         arr[i] = ids_array[i];
     }
 }
 
 
-void init_report_hander(){
+void init_report_handler(int* default_ids, int default_ids_len, bool use_default_ids){
     for(int i = 0; i < MAX_NODES; i++) {
         is_dict_ix_empty[i] = true;
+    }
+
+    if(use_default_ids){
+        for(int i=0; i<default_ids_len; i++){
+            ids_array[i] = default_ids[i];
+        }
+        ids_array_len=default_ids_len;
+
+    }else{
+        //*INIT IDS_ARRAY[] (ROOT IS ALONE)
+        ids_array[0] = ROOT_ID; //ROOT_ID == 0
+        ids_array_len = 1; 
+
+        //*INIT DICT[] e IS_DICT_EMPTY[] (ROOT IS ALONE)
+        PayloadReport pr;
+        pr.my_id = ROOT_ID;
+        pr.my_master_id = UNKNOWN_ID;
+        pr.my_slave_id = UNKNOWN_ID;
+        dict[0] = pr;
+        is_dict_ix_empty[0] = false;
     }
 }
 
@@ -114,7 +134,7 @@ void task_handle_report(void* arg){
   xQueueReceive(h_queue_report, &msg, portMAX_DELAY);
     
     // printf("REPORT: SLAVE=%d, MY=%d, MASTER=%d\n", msg->payload.payload_report.my_slave_id, msg->payload.payload_report.my_id, msg->payload.payload_report.my_master_id);
-    recive_new_report(msg->payload.payload_report);
+    receive_new_report(msg->payload.payload_report);
   }
 }
 

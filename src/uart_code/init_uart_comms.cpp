@@ -1,5 +1,4 @@
-#include "utils_communication.h"
-#include "protocol_manager.h"
+#include "utils_uart_comms.h"
 
 //* _______________________________________ MAIN e TEST
 void test_task(void* info){
@@ -28,33 +27,39 @@ void test_task(void* info){
 }
 
 
-void init_comunication(){
+void init_uart_comms(){
   
   //todo for test
   
-  SELF_ID = 0; 
+  //!!!ID!!!
+  SELF_ID = 2; 
 
-
-  bool SET_DEFAULT_IDS = 0; //OTHERWISE IT ATTEMPTS TO SEND HANDSHAKES
+  //*TEST
+  bool USE_DEFAULT_IDS = 0; //! NON INIZIALIZZA la logica di handshake
   bool TEST_FUN = 0;
+  int INIT_PAUSE = 10000;
 
+  //*UART
   PRINT_RECEIVED_BYTES = 0;
-  BLINK_ON_RECEIVE_MSG = 1;
 
-  int32_t L_DELAY = 5000;
+  //*LED
+  BLINK_ON_RECEIVE_MSG = 1;
+  BLINK_ON_SEND_MSG = 1;
+
+  int32_t LED_LOOP_DELAY = 5000;
 
   if(SELF_ID == 0){ 
     MASTER_ID = -1;
 
-    if(SET_DEFAULT_IDS) SLAVE_ID = 1;
+    if(USE_DEFAULT_IDS) SLAVE_ID = 1;
   }else if(SELF_ID == 1){
 
-    if(SET_DEFAULT_IDS){
+    if(USE_DEFAULT_IDS){
       MASTER_ID = 0;
       SLAVE_ID = 2;
     }
   }else if(SELF_ID == 2){
-    if(SET_DEFAULT_IDS){
+    if(USE_DEFAULT_IDS){
       MASTER_ID = 2;
       SLAVE_ID = -1;
     }
@@ -64,12 +69,12 @@ void init_comunication(){
 
 
   // esp_task_wdt_deinit();
-  vTaskDelay(pdMS_TO_TICKS(10000)); //!ATTENTO - RIMUOVERE O SETTARE A 1500
+  vTaskDelay(pdMS_TO_TICKS(INIT_PAUSE)); //!ATTENTO - RIMUOVERE O SETTARE A 1500
   printf("\nSTART START START START START START START START!!!\n");
 
   //*LED SETUP
   init_led();
-  set_loop_blink_delay(L_DELAY);
+  set_loop_blink_delay(LED_LOOP_DELAY);
   //*LED DEFAULT BEHAVIOUR IS BLINKING IF NOTHING ELSE
   if(!BLINK_ON_RECEIVE_MSG){
     resume_loop_blink();
@@ -85,14 +90,15 @@ void init_comunication(){
   h_queue_servo = xQueueCreate(10, sizeof(Msg*));
 
   //*UART
+  init_uart_mutexes();
   init_uart((uart_port_t)U_WITH_SLAVE, FROM_SLAVE_RX, TO_SLAVE_TX);
   init_uart((uart_port_t)U_WITH_MASTER, FROM_MASTER_RX, TO_MASTER_TX);
 
-  xTaskCreate(task_receive_uart, "task_receive_uart_master", 5000, (void*)U_WITH_MASTER, 2, nullptr);
-  xTaskCreate(task_receive_uart, "task_receive_uart_slave", 5000, (void*)U_WITH_SLAVE, 2, nullptr);
+  xTaskCreate(task_receive_uart, "task_receive_uart_master", 10000, (void*)U_WITH_MASTER, 2, nullptr);
+  xTaskCreate(task_receive_uart, "task_receive_uart_slave", 10000, (void*)U_WITH_SLAVE, 2, nullptr);
 
-  xTaskCreate(task_send_uart, "task_send_uart_master", 5000, (void*)U_WITH_MASTER, 2, nullptr);
-  xTaskCreate(task_send_uart, "task_send_uart_slave", 5000, (void*)U_WITH_SLAVE, 2, nullptr);
+  xTaskCreate(task_send_uart, "task_send_uart_master", 10000, (void*)U_WITH_MASTER, 2, nullptr);
+  xTaskCreate(task_send_uart, "task_send_uart_slave", 10000, (void*)U_WITH_SLAVE, 2, nullptr);
 
   //todo E' SOLO UN MOCKUP, DA RIMUOVERE 
   xTaskCreate(task_execute_command_01, "task_execute_command_01", 5000, nullptr, 1, nullptr);
@@ -101,18 +107,22 @@ void init_comunication(){
   //todo
 
   //*HANDSHAKE
-  if(!SET_DEFAULT_IDS){
+  int arr[3] = {0,1,2};
+  init_report_handler(arr, 3, USE_DEFAULT_IDS);
+  if(!USE_DEFAULT_IDS){
     xTaskCreate(task_ping_slave, "task_ping_slave", 5000, nullptr, 2, nullptr);
     xTaskCreate(task_ping_master, "task_ping_master", 5000, nullptr, 2, nullptr);
     xTaskCreate(task_handle_handshakes, "task_handle_handshakes", 5000, nullptr, 24, nullptr);
     xTaskCreate(task_handle_report, "task_handle_report", 5000, nullptr, 2, nullptr);
-    init_report_handler();
   }
 
 
   //! REMOVE
-  // float rr[3] = {1,2,3};
-  // convert_servo_instructions(rr, 3);
+  if(SELF_ID == ROOT_ID){
+    vTaskDelay(pdMS_TO_TICKS(5000));
+    printf("TESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTEST\n");
+    convert_servo_instructions({0.5f, 1.0f, 1.5f});
+  }
   
 
   //todo TEST FUNCTION

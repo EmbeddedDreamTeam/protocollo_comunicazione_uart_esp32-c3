@@ -3,11 +3,50 @@
 
 //definiti da me:
 #include "msg_structs.h"
-#include "utils_communication.h"
+#include "utils_uart_comms.h"
+
 
 //*GLOBALS
 SemaphoreHandle_t master_buffer_mutex;
 SemaphoreHandle_t slave_buffer_mutex;
+SemaphoreHandle_t block_print_mutex;
+
+
+bool already_done = 0;
+//* _______________________________________ ON START INIT UART
+
+
+void init_uart_mutexes(){
+    master_buffer_mutex = xSemaphoreCreateMutex();
+    slave_buffer_mutex = xSemaphoreCreateMutex();
+    block_print_mutex = xSemaphoreCreateMutex();
+    printf("blockprint_mutex: %p\n", (void*)block_print_mutex);
+}
+
+
+
+void init_uart(uart_port_t uart_num, int rx_pin, int tx_pin) {
+    const uart_config_t uart_config = {
+        .baud_rate = BAUD_RATE,
+        .data_bits = UART_DATA_8_BITS,
+        .parity = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .rx_flow_ctrl_thresh = 122, 
+        .source_clk = UART_SCLK_APB,
+        .flags = 0,
+    };
+    
+    uart_driver_install(uart_num, U_BUF_SIZE * 2, 0, 0, nullptr, 0);
+    uart_param_config(uart_num, &uart_config);
+    uart_set_pin(uart_num, tx_pin, rx_pin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    gpio_set_pull_mode((gpio_num_t)rx_pin, GPIO_PULLUP_ONLY); 
+
+    if(SELF_ID == 1){ 
+      printf("\nUART: %d, tx_pin: %d, rx_pin: %d\n", uart_num, tx_pin, rx_pin);
+    }
+}
+
 
 
 //* _______________________________________UART RECEIVE
@@ -107,6 +146,8 @@ void task_receive_uart(void *arg) {
             wake_task_blink_led_once();
         }
 
+        // printf("AHHHHHHHH blockprint_mutex: %p\n", block_print_mutex);
+        // xSemaphoreTake(block_print_mutex, portMAX_DELAY);
         printf("\n================[RECEIVE UART]================\n");
         const char* role = get_role_name(selected_uart);
         if(msg->target_id == SELF_ID || msg->target_id == -1){ //! in ogni caso se -1 lo prendo io
@@ -127,9 +168,11 @@ void task_receive_uart(void *arg) {
             }
         }
 
-        printf("================[__RECEIVE UART]================\n");
-        
+        printf("================[__RECEIVE UART]================\n\n");
         fflush(stdout);
+
+        // printf("blockprint_mutex: %p\n", (void*)block_print_mutex);
+        // xSemaphoreGive(block_print_mutex);
     }
 }
 
@@ -152,7 +195,8 @@ void task_send_uart(void *arg){
     // uart_write_bytes(selected_uart, (const void*)msg, sizeof(Msg));
     int bytes_sent = uart_write_bytes(selected_uart, (const void*)msg, sizeof(Msg));
     
-
+    // printf("blockprint_mutex: %p\n", (void*)block_print_mutex);
+    // xSemaphoreTake(block_print_mutex, portMAX_DELAY);
     printf("\n================[SEND UART]================\n");
     const char* role = get_role_name(selected_uart);
     printf("SONO: %d, HO INVIATO INVIO A: %s, IL SEGUENTE MESSAGGIO:\n", SELF_ID, role);
@@ -166,42 +210,17 @@ void task_send_uart(void *arg){
     if(BLINK_ON_SEND_MSG){
       wake_task_blink_led_once();
     }
-    printf("================[__SEND UART]================\n");
+    printf("================[__SEND UART]================\n\n");
+    fflush(stdout);
+
+    // printf("blockprint_mutex: %p\n", (void*)block_print_mutex);
+    // xSemaphoreGive(block_print_mutex);
+
 
     delete msg; 
   } 
 }
 
-
-bool merda = 0;
-//* _______________________________________ ON START INIT UART
-void init_uart(uart_port_t uart_num, int rx_pin, int tx_pin) {
-    const uart_config_t uart_config = {
-        .baud_rate = BAUD_RATE,
-        .data_bits = UART_DATA_8_BITS,
-        .parity = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .rx_flow_ctrl_thresh = 122, 
-        .source_clk = UART_SCLK_APB,
-        .flags = 0,
-    };
-    
-    uart_driver_install(uart_num, U_BUF_SIZE * 2, 0, 0, nullptr, 0);
-    uart_param_config(uart_num, &uart_config);
-    uart_set_pin(uart_num, tx_pin, rx_pin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-    gpio_set_pull_mode((gpio_num_t)rx_pin, GPIO_PULLUP_ONLY); 
-
-    if(SELF_ID == 1){ 
-      printf("\nUART: %d, tx_pin: %d, rx_pin: %d\n", uart_num, tx_pin, rx_pin);
-    }
-
-    if(!merda){
-      merda = 1;
-      master_buffer_mutex = xSemaphoreCreateMutex();
-      slave_buffer_mutex = xSemaphoreCreateMutex();
-    }
-}
 
 
 Msg* create_msg(int sender_id, int target_id, MsgType type, Payload payload){

@@ -1,14 +1,13 @@
-#include "utils_communication.h"
+#include "utils_uart_comms.h"
 #include "init_wifi.h"
 
 extern "C" void app_main(void){
 
-  init_wifi(); // i have not tested
+  if(SELF_ID == ROOT_ID){
+    init_wifi();
+  }
 
-  //per fare prove con uart, da commentare x usare wifi
-  init_comunication(); 
-
-  // init_wifi(); // i have not tested
+  init_uart_comms(); 
 
   printf("\n\n<<<<<<<<<<<<<<<<==========>>>>>>>>>>>>>>>\nTHE END OF APP_MAIN - NOW I LOOP\n<<<<<<<<<<<<<<<<==========>>>>>>>>>>>>>>>\n");
   fflush(stdout);

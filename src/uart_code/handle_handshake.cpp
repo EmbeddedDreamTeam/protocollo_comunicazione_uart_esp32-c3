@@ -3,7 +3,7 @@
 
 //definiti da me:
 #include "msg_structs.h"
-#include "utils_communication.h"
+#include "utils_uart_comms.h"
 
 
 //* _______________________________________ GESTIONE DI HANDSHAKE
@@ -20,7 +20,7 @@ void send_report_to_root(){
   p.payload_report.my_slave_id = SLAVE_ID;
 
   if(SELF_ID == ROOT_ID){
-    recive_new_report(p.payload_report); //chiami direttamente il modulo
+    receive_new_report(p.payload_report); //chiami direttamente il modulo
   }else{
     Msg* m = create_msg(SELF_ID, ROOT_ID, type_report, p);
     send_msg_to_master(m);

@@ -1,4 +1,5 @@
-#include "utils_communication.h"
+#include "utils_uart_comms.h"
+using namespace std;
 
 
 // Helper to convert degrees to radians if your servo logic requires it
@@ -9,7 +10,12 @@
 void convert_servo_instructions(const std::vector<float>& angles){
     int total_nodes = get_ids_array_len();
     int ids_arr[total_nodes];
-    get_ids_array(ids_arr);
+    get_ids_array(ids_arr, total_nodes);
+
+    // printf("total_nodes %d\n", total_nodes);
+    // for(int i=0; i<3; i++){
+    //     printf("%d\n", ids_arr[i]);
+    // }
 
     // The vector 'angles' comes from the computer. 
     // We assume angles[0] is for Root (ID 0), angles[1] for first Slave, etc.
@@ -18,7 +24,7 @@ void convert_servo_instructions(const std::vector<float>& angles){
 
         Payload p;
         // Convert degree (uint16_t) to Radians (float) as expected by your Payload struct
-        p.payload_servo.radians = angles[i] * (M_PI / 180.0f);
+        p.payload_servo.radians = angles[i] * (M_PI / 180.0f); //! ATTENTO ALLA CONVERSIONE IN RADIANTI, LA VUOI VERAMENTE???
         
         int target_id = ids_arr[i];
 

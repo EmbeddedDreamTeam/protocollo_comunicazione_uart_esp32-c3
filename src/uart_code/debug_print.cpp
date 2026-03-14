@@ -3,16 +3,10 @@
 
 //definiti da me:
 #include "msg_structs.h"
-#include "utils_communication.h"
+#include "utils_uart_comms.h"
 
 
 //* _______________________________________PRINT DEBUG INFO
-void print_info_uart_struct(InfoUART* info){
-  printf("\nselect_uart: %d\n", info->select_uart);
-  printf("select_queue: %p\n\n", (void*)info->select_queue);
-  fflush(stdout);
-}
-
 
 const char* get_role_name(int role) {
     if (role == 0) {
@@ -102,6 +96,5 @@ void print_msg_struct(Msg* msg){
     default:
       printf("ERROR: unknown message type\n");
   }
-
-  printf("\n");
+  printf("__PRINTING STRUCT MESSAGE.\n");
 }

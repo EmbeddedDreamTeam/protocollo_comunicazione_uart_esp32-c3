@@ -4,6 +4,7 @@
 #include <string.h>
 #include <queue>
 #include <vector>
+#include <iostream>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -78,7 +79,7 @@ extern QueueHandle_t h_queue_send_to_master;
 
 
 //* INIT_COMUNICATION.CPP
-void init_comunication();
+void init_uart_comms();
 
 
 //* LED.CPP
@@ -107,6 +108,7 @@ void send_buffered_messages_to_slave();
 void send_msg_to_slave(Msg* msg);
 void task_send_uart(void *arg);
 void init_uart(uart_port_t uart_num, int rx_pin, int tx_pin);
+void init_uart_mutexes();
 
 
 //* HANDLE_HANDSHAKE.CPP
@@ -116,11 +118,11 @@ void task_handle_handshakes(void* info);
 
 
 //*HANDLE_REPORT.CPP
+void init_report_handler(int* default_ids, int default_ids_len, bool use_default_ids);
 void task_handle_report(void* arg);
+void receive_new_report(PayloadReport p);
 int get_ids_array_len();
-void get_ids_array(int arr[]);
-void init_report_handler();
-void recive_new_report(PayloadReport p);
+void get_ids_array(int* arr, int len);
 
 
 //* COMMANDS.CPP

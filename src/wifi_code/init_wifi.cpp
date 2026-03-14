@@ -5,7 +5,7 @@
 #include "wifi_manager.h"
 #include "tcp_server.h"
 #include "protocol_manager.h"
-#include "uart_headers/utils_communication.h"
+#include "utils_uart_comms.h"
 
 static const char* TAG = "Main";
 
