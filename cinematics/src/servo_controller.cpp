@@ -1,4 +1,5 @@
 #include "servo_controller.h"
+#include <freertos/queue.h>
 
 TaskHandle_t xTaskHandle = NULL;
 
@@ -79,7 +80,7 @@ esp_err_t set_servo_pos(float rad){
 
 void move_servo_speed_task(void * pvParameters) {
     ServoTaskParams cmd;
-    float current_rad = servo_data.current_pos;
+    float current_rad = servo_data.current_pos.load();
     
     TickType_t xLastWakeTime;
     const TickType_t xFrequency = pdMS_TO_TICKS(20);
@@ -134,12 +135,17 @@ esp_err_t move_servo_speed(float rad, float speed){
     ServoTaskParams params;
     params.target_rad = rad;
     params.speed = speed>servo_data.max_speed?servo_data.max_speed:speed;
-
-    // sending new params to the task, if the queue is full immediatly return
+    // if the queue is full, we drop the oldest command to make room for the new one, ensuring that the servo always moves towards the most recent target position
+    //ensuring reactivity
     if (xQueueSend(xServoQueue, &params, 0) != pdPASS) {
-        //ESP_LOGW("SERVO_API", "Coda piena, comando scartato o in attesa");
-        return ESP_ERR_INVALID_STATE;
+        ServoTaskParams dropped;
+        xQueueReceive(xServoQueue, &dropped, 0);
+        // trying to send the new command again after dropping the oldest one
+        if (xQueueSend(xServoQueue, &params, 0) != pdPASS) {
+            return ESP_ERR_INVALID_STATE;
+        }
     }
+
     return ESP_OK;
 }
 
@@ -148,7 +154,7 @@ void servo_init(){
     servo_timer_init();
 
     // ensure logical current position has a known value before task start
-    servo_data.current_pos.store(0.0f);
+    servo_data.current_pos.store(0.1f);
 
     // creating the queue with the designed lenght
     xServoQueue = xQueueCreate(SERVO_QUEUE_LEN, sizeof(ServoTaskParams));
@@ -162,12 +168,7 @@ void servo_init(){
         1,
         &xTaskHandle
     );
-
-    vTaskDelay(pdMS_TO_TICKS(200));
-    move_servo_speed(servo_data.max_pos, 1.0f);
-    vTaskDelay(pdMS_TO_TICKS(1000));
-    move_servo_speed(servo_data.min_pos, 1.0f);
-    vTaskDelay(pdMS_TO_TICKS(1000));
+    
     move_servo_speed(0.0f, 1.0f);
     vTaskDelay(pdMS_TO_TICKS(1000));
 }
