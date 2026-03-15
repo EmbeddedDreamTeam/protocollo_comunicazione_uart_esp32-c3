@@ -39,6 +39,9 @@ typedef struct{
 
 typedef struct{
     float radians; //? is it true?
+    float speed;
+    float acceleration; //not sure if these will be used
+    float jerk;
 }PayloadServo;
 
 

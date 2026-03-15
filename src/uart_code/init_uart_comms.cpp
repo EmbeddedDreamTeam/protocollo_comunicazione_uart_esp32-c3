@@ -103,7 +103,7 @@ void init_uart_comms(){
   //todo E' SOLO UN MOCKUP, DA RIMUOVERE 
   xTaskCreate(task_execute_command_01, "task_execute_command_01", 5000, nullptr, 1, nullptr);
   xTaskCreate(task_execute_command_02, "task_execute_command_02", 5000, nullptr, 1, nullptr);
-  xTaskCreate(task_execute_servo, "task_execute_servo", 5000, nullptr, 2, nullptr);
+  //xTaskCreate(task_execute_servo, "task_execute_servo", 5000, nullptr, 2, nullptr);
   //todo
 
   //*HANDSHAKE
