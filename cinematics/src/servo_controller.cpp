@@ -2,6 +2,7 @@
 #include <freertos/queue.h>
 
 TaskHandle_t xTaskHandle = NULL;
+static QueueHandle_t xServoQueue = NULL; //queue handler
 
 // single definition of servo_data (shared across translation units)
 ServoData servo_data = {
