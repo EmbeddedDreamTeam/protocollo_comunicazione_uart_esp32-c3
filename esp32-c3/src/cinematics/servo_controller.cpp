@@ -2,18 +2,22 @@
 #include <freertos/queue.h>
 
 TaskHandle_t xTaskHandle = NULL;
-static QueueHandle_t xServoQueue = NULL; //queue handler
+QueueHandle_t xServoQueue = NULL; //queue handler
 
 // single definition of servo_data (shared across translation units)
 ServoData servo_data = {
     .duty_res = 0,                // will be set by servo_timer_init()
-    .gpio = 3,
+    .gpio = 5,
     .sgnl_min_duty = 500,
     .sgnl_max_duty = 2500,
     .min_pos = (float)(-30.5/36.0*M_PI),
     .max_pos = (float)( 30.5/36.0*M_PI),
     .current_pos = std::atomic<float>(0.0f),
-    .max_speed = 5.2f
+    .current_speed = std::atomic<float>(0.0f),
+    .current_acc = std::atomic<float>(0.0f),
+    .max_speed = 5.2f,
+    .max_acc = 100.0f,
+    .max_jerk = 1500.0f, //to have a fluid movement, the servo should be able to reach the target acceleration in 0.1 seconds, so jerk = acc / 0.1s
 };
 
 void servo_timer_init();
@@ -81,17 +85,19 @@ esp_err_t set_servo_pos(float rad){
 
 void move_servo_speed_task(void * pvParameters) {
     ServoTaskParams cmd;
-    float current_rad = servo_data.current_pos.load();
     
     TickType_t xLastWakeTime;
+    TickType_t xPreviousFrameTick;
     const TickType_t xFrequency = pdMS_TO_TICKS(20);
 
     while (1) {
         if (xQueueReceive(xServoQueue, &cmd, portMAX_DELAY)) {
-            
+            float current_rad = servo_data.current_pos.load();
             // initializing time: count of ticks since vTaskStartScheduler was called
+            //number of ticks of the previus command
             xLastWakeTime = xTaskGetTickCount();
-            TickType_t xPreviousFrameTick = xLastWakeTime;
+            //saving the tick count at the start of the movement frame, to calculate the effective time elapsed in each iteration and use it for the speed control, ensuring a more precise control over the servo movement
+            xPreviousFrameTick = xLastWakeTime;
 
             while (fabs(current_rad - cmd.target_rad) > 0.005f) {
                 // new commands check
@@ -104,11 +110,26 @@ void move_servo_speed_task(void * pvParameters) {
                 TickType_t xCurrentTick = xTaskGetTickCount();
                 // calculating real time elapsed in seconds
                 float dt = (float)(xCurrentTick - xPreviousFrameTick) * portTICK_PERIOD_MS / 1000.0f;
+                //now the previous tick count is updated to the current one
                 xPreviousFrameTick = xCurrentTick;
 
                 // step based on real time elapsed
-                float step = cmd.speed * dt; 
-                
+                //float step = cmd.speed * dt; 
+                float current_speed = servo_data.current_speed.load();
+                float current_acc = servo_data.current_acc.load();
+                float step = current_speed * dt; 
+                if (current_speed<cmd.speed) {
+                    // if we are below the target speed, we need to accelerate
+                    current_speed += current_acc * dt;
+                    if (current_speed > cmd.speed) current_speed = cmd.speed; // limit speed
+                }
+                if(current_acc < cmd.acc){
+                    // if we are below the target acceleration, we need to increase jerk
+                    current_acc += cmd.jerk * dt;
+                    if (current_acc > cmd.acc) current_acc = cmd.acc; // limit acceleration
+                }
+                servo_data.current_speed.store(current_speed);
+                servo_data.current_acc.store(current_acc);
                 if (current_rad < cmd.target_rad) {
                     current_rad += step;
                     if (current_rad > cmd.target_rad) current_rad = cmd.target_rad;
@@ -118,16 +139,18 @@ void move_servo_speed_task(void * pvParameters) {
                 }
 
                 set_servo_pos(current_rad);
-
-                // periodically waking this function a xFrequency rate
+                // periodically waking this function at a xFrequency rate
                 vTaskDelayUntil(&xLastWakeTime, xFrequency);
             }
+            servo_data.current_speed.store(0.0f); // when the target position is reached, the speed is set to 0
+            servo_data.current_acc.store(0.0f); // when the target position is reached, the acceleration is set to 0
+            send_movement_ack(cmd.target_rad);
         }
     }
 }
 
 
-esp_err_t move_servo_speed(float rad, float speed){
+esp_err_t move_servo_speed(float rad, float speed, float acc, float jerk){
     if (xServoQueue == NULL) {
         //ESP_LOGE("SERVO_API", "Errore: Coda non inizializzata!");
         return ESP_ERR_INVALID_STATE;
@@ -136,6 +159,8 @@ esp_err_t move_servo_speed(float rad, float speed){
     ServoTaskParams params;
     params.target_rad = rad;
     params.speed = speed>servo_data.max_speed?servo_data.max_speed:speed;
+    params.acc = acc>servo_data.max_acc?servo_data.max_acc:acc;
+    params.jerk = jerk>servo_data.max_jerk?servo_data.max_jerk:jerk;
     // if the queue is full, we drop the oldest command to make room for the new one, ensuring that the servo always moves towards the most recent target position
     //ensuring reactivity
     if (xQueueSend(xServoQueue, &params, 0) != pdPASS) {
@@ -170,7 +195,7 @@ void servo_init(){
         &xTaskHandle
     );
     
-    move_servo_speed(0.0f, 1.0f);
+    move_servo_speed(0.0f, 1.0f, servo_data.max_acc, servo_data.max_jerk); //moving the servo to the initial position with max speed, acc and jerk to ensure a fast initialization
     vTaskDelay(pdMS_TO_TICKS(1000));
 }
 

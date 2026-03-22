@@ -14,6 +14,8 @@
 typedef struct {
     float target_rad;
     float speed;
+    float acc;
+    float jerk;
 } ServoTaskParams;
 
 typedef struct {
@@ -28,7 +30,11 @@ typedef struct {
     float min_pos;
     float max_pos;
     std::atomic<float> current_pos; //this ensure thread safety
+    std::atomic<float> current_speed;
+    std::atomic<float> current_acc;
     float max_speed;
+    float max_acc;
+    float max_jerk;
 } ServoData;
 
 extern ServoData servo_data;
@@ -36,7 +42,7 @@ extern ServoData servo_data;
 extern QueueHandle_t xServoQueue; //queue handler
 extern TaskHandle_t xTaskHandle; //task handler
 esp_err_t set_servo_pos(float rad);
-esp_err_t move_servo_speed(float rad, float speed); //speed is in rad/s
+esp_err_t move_servo_speed(float rad, float speed, float acc, float jerk);
 float rad_from_deg(int32_t degrees);
 void servo_init();
 
