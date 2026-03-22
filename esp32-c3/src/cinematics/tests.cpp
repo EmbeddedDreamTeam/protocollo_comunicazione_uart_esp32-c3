@@ -80,29 +80,3 @@ void test_jerk() {
         vTaskDelay(pdMS_TO_TICKS(5000));
     }
 }
-
-extern "C" void app_main() {
-    servo_init();
-    // Disattiva il timer watchdog
-    esp_task_wdt_deinit();
-
-    while(1) {
-        test_sweep();
-        vTaskDelay(pdMS_TO_TICKS(5000));
-
-        test_precision();
-        vTaskDelay(pdMS_TO_TICKS(5000));
-        
-        test_reactivity();
-        vTaskDelay(pdMS_TO_TICKS(5000));
-
-        test_acceleration();
-        vTaskDelay(pdMS_TO_TICKS(5000));
-        
-        test_jerk();
-        vTaskDelay(pdMS_TO_TICKS(5000));
-
-        test_speed_ramp();
-        vTaskDelay(pdMS_TO_TICKS(5000));
-    }
-}
