@@ -1,4 +1,4 @@
-#include "servo_controller.h"
+#include "../../include/cinematics_header/servo_controller.h"
 #include <freertos/queue.h>
 
 TaskHandle_t xTaskHandle = NULL;
@@ -22,10 +22,16 @@ ServoData servo_data = {
 
 void servo_timer_init();
 void move_servo_speed_task(void * pvParameters);
-void send_movement_ack(float rad);
+void send_movement_ack();
 
-void send_movement_ack(float rad){
-    //TODO
+void send_movement_ack(){
+    PayloadServo payload;
+    payload.radians = servo_data.current_pos.load();
+    payload.speed = servo_data.current_speed.load();
+    payload.acceleration = servo_data.current_acc.load();
+    Msg* msg = create_msg(SELF_ID, MASTER_ID, type_servo_ack, Payload{.payload_servo=payload});
+    send_msg_to_master(msg);
+    delete msg; // Free the allocated message after sending
 }
 
 void servo_timer_init(){

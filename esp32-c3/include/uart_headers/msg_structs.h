@@ -38,11 +38,21 @@ typedef struct{
 
 
 typedef struct{
-    float radians; //? is it true?
+    float radians; 
     float speed;
-    float acceleration; //not sure if these will be used
+    float acceleration;
     float jerk;
 }PayloadServo;
+
+typedef struct{
+    int sender_id;
+}ServoAck;
+
+typedef struct{
+    float curr_radians;
+    float curr_speed;
+    float curr_acc;
+}CinematicUpdate;
 
 
 //con le union alloca sempre i byte x il messaggio + lungo
