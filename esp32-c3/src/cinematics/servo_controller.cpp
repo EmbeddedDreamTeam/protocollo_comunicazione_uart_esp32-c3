@@ -27,11 +27,9 @@ void move_servo_speed_task(void * pvParameters);
 void send_movement_ack();
 
 void send_movement_ack(){
-    PayloadServo payload;
-    payload.radians = servo_data.current_pos.load();
-    payload.speed = servo_data.current_speed.load();
-    payload.acceleration = servo_data.current_acc.load();
-    Msg* msg = create_msg(SELF_ID, MASTER_ID, type_servo_ack, Payload{.payload_servo=payload});
+    ServoAck ack;
+    ack.sender_id=SELF_ID;
+    Msg* msg = create_msg(SELF_ID, MASTER_ID, type_servo_ack, {.payload_servo=ack});
     send_msg_to_master(msg);
     delete msg; // Free the allocated message after sending
 }
