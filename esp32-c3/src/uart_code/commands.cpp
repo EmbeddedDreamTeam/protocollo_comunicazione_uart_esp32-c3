@@ -1,4 +1,5 @@
 #include "utils_uart_comms.h"
+#include "servo_controller.h"
 
 //* _______________________________________ EXECUTE COMMANDS
 
@@ -33,6 +34,7 @@ void task_execute_servo(void *arg){
     printf("START: execute_servo\n");
 
     float radians = msg->payload.payload_servo.radians;
+
     printf("Servo target radians: %f\n", radians);
 
     vTaskDelay(pdMS_TO_TICKS(3000));

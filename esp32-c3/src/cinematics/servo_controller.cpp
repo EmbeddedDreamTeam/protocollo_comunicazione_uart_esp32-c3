@@ -1,4 +1,6 @@
-#include "../../include/cinematics_header/servo_controller.h"
+#include "servo_controller.h"
+#include "msg_structs.h"
+#include "utils_uart_comms.h"
 #include <freertos/queue.h>
 
 TaskHandle_t xTaskHandle = NULL;
@@ -150,7 +152,7 @@ void move_servo_speed_task(void * pvParameters) {
             }
             servo_data.current_speed.store(0.0f); // when the target position is reached, the speed is set to 0
             servo_data.current_acc.store(0.0f); // when the target position is reached, the acceleration is set to 0
-            send_movement_ack(cmd.target_rad);
+            send_movement_ack();
         }
     }
 }
