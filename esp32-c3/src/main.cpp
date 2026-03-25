@@ -1,7 +1,8 @@
+#pragma GCC optimize ("Os")
 #include "servo_controller.h"
 #include "utils_uart_comms.h"
 #include "init_wifi.h"
-#include <esp_mac.h>
+#include "esp_mac.h"
 
 void init_cube();
 // void task_execute_servo(void *arg);
