@@ -18,29 +18,34 @@ void init_cube() {
     memcpy(molecube_data.mac, mac, 6); //copying the mac address byte to byte to the molecube_data struct
 }
 
+void handle_movement_ack(Msg* msg){
+    //TODO complete this function, send the ack to the ui?
+}
 
-// // Task: receive Msg* from the higher-level UART queue and translate into
-// // servo controller commands by calling move_servo_speed()
-// void task_execute_servo(void *arg) {
-//     (void)arg;
-//     extern QueueHandle_t h_queue_servo; // declared in utils_uart_comms.h / GLOBAL_VARS.cpp
+// Task: receive Msg* from the higher-level UART queue and translate into
+// servo controller commands by calling move_servo_speed()
+// this is needed beacause also the master has a servo
 
-//     while (1) {
-//         Msg *msg = nullptr;
-//         if (xQueueReceive(h_queue_servo, &msg, portMAX_DELAY) == pdTRUE) {
-//             ESP_LOGI("EXEC_SERVO", "Received servo message");
-//             if (msg) {
-//                 float radians = msg->payload.payload_servo.radians;
-//                 float speed = msg->payload.payload_servo.speed;
-//                 esp_err_t err = move_servo_speed(radians, speed, servo_data.max_acc, servo_data.max_jerk);
-//                 if (err != ESP_OK) {
-//                     ESP_LOGW("EXEC_SERVO", "move_servo_speed failed: %d", err);
-//                 }
-//                 delete msg; // free message allocated by UART layer
-//             }
-//         }
-//     }
-// }
+void task_execute_servo(void *arg) {
+    (void)arg;
+    extern QueueHandle_t h_queue_servo; // declared in utils_uart_comms.h / GLOBAL_VARS.cpp
+
+    while (1) {
+        Msg *msg = nullptr;
+        if (xQueueReceive(h_queue_servo, &msg, portMAX_DELAY) == pdTRUE) {
+            ESP_LOGI("EXEC_SERVO", "Received servo message");
+            if (msg) {
+                float radians = msg->payload.payload_servo.radians;
+                float speed = msg->payload.payload_servo.speed;
+                esp_err_t err = move_servo_speed(radians, speed, servo_data.max_acc, servo_data.max_jerk);
+                if (err != ESP_OK) {
+                    ESP_LOGW("EXEC_SERVO", "move_servo_speed failed: %d", err);
+                }
+                delete msg; // free message allocated by UART layer
+            }
+        }
+    }
+}
 
 extern "C" void app_main() {
     //initializing wifi, uart comms, cube data (mac address) and servo controller

@@ -10,6 +10,12 @@ using namespace std;
     #define M_PI 3.14159265358979323846
 #endif
 
+esp_err_t sanitize_angle_commands(float rad){
+    //TODO normalize the angles greather than 360° to correct range of the servo
+    //TODO check if this command could cause a collision
+    return ESP_OK;
+}
+
 void convert_servo_instructions(const std::vector<float>& angles){
     int total_nodes = get_ids_array_len();
     int ids_arr[total_nodes];

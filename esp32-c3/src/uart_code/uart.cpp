@@ -63,6 +63,7 @@ void sort_new_msg(Msg *msg){
         xQueueSend(h_queue_servo, &msg, portMAX_DELAY);
     }else if(msg->type == type_servo_ack){
         printf("else if(msg->type == type_servo_ack){ !!! !!! !!!\n");
+        //TODO ideally call a function to handle it
         // xQueueSend(h_queue_servo, &msg, portMAX_DELAY); //!DOESNT DELETE THE MSG !!!! 
     }else{
         printf("ERRORE: [sort_new_msg] type: %i , non esiste\n", msg->type);

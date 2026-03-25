@@ -21,11 +21,12 @@ ServoData servo_data = {
     .max_acc = 100.0f,
     .max_jerk = 1500.0f, //to have a fluid movement, the servo should be able to reach the target acceleration in 0.1 seconds, so jerk = acc / 0.1s
 };
-
+//TODO trim servo in order to have the middle point aligned correctly
 void servo_timer_init();
 void move_servo_speed_task(void * pvParameters);
 void send_movement_ack();
 
+//TODO forse questa funzione era già stata fatta da cesare?
 void send_movement_ack(){
     PayloadServoAck ack;
     ack.sender_id=SELF_ID;
@@ -34,7 +35,7 @@ void send_movement_ack(){
     delete msg; // Free the allocated message after sending
 }
 
-//TODO add function to send continuous updates about the position
+//TODO add task to send continuous updates about the position
 
 void servo_timer_init(){
     servo_data.duty_res =ledc_find_suitable_duty_resolution(80000000, 50);//auto clock freq of 80MHz and timer freq of 50Hz, the most common servo frequency
@@ -90,7 +91,7 @@ esp_err_t set_servo_pos(float rad){
     }
 
 }
-
+//TODO implement deceleration
 void move_servo_speed_task(void * pvParameters) {
     ServoTaskParams cmd;
     
