@@ -27,12 +27,14 @@ void move_servo_speed_task(void * pvParameters);
 void send_movement_ack();
 
 void send_movement_ack(){
-    ServoAck ack;
+    PayloadServoAck ack;
     ack.sender_id=SELF_ID;
-    Msg* msg = create_msg(SELF_ID, MASTER_ID, type_servo_ack, {.payload_servo=ack});
+    Msg* msg = create_msg(SELF_ID, MASTER_ID, type_servo_ack, Payload{.payload_servo_ack=ack});
     send_msg_to_master(msg);
     delete msg; // Free the allocated message after sending
 }
+
+//TODO add function to send continuous updates about the position
 
 void servo_timer_init(){
     servo_data.duty_res =ledc_find_suitable_duty_resolution(80000000, 50);//auto clock freq of 80MHz and timer freq of 50Hz, the most common servo frequency
