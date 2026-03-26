@@ -105,6 +105,16 @@ void move_servo_speed_task(void * pvParameters) {
     while (1) {
         if (xQueueReceive(xServoQueue, &cmd, portMAX_DELAY)) {
             float current_rad = servo_data.current_pos.load();
+            float mid_point;
+            int dir;
+            if (cmd.target_rad > current_rad){
+                dir = 1;
+                mid_point = current_rad + (cmd.target_rad - current_rad) / 2.0f;
+            }
+            else{
+                dir = -1;
+                mid_point = cmd.target_rad + (current_rad - cmd.target_rad) / 2.0f;
+            }
             // initializing time: count of ticks since vTaskStartScheduler was called
             //number of ticks of the previus command
             xLastWakeTime = xTaskGetTickCount();
@@ -130,24 +140,29 @@ void move_servo_speed_task(void * pvParameters) {
                 float current_speed = servo_data.current_speed.load();
                 float current_acc = servo_data.current_acc.load();
                 float step = current_speed * dt; 
-                if (current_speed<cmd.speed) {
-                    // if we are below the target speed, we need to accelerate
-                    current_speed += current_acc * dt;
-                    if (current_speed > cmd.speed) current_speed = cmd.speed; // limit speed
+                if(dir*current_rad<dir*mid_point){
+                    if (current_speed<cmd.speed) {
+                        // if we are below the target speed, we need to accelerate
+                        current_speed += current_acc * dt;
+                        if (current_speed > cmd.speed) current_speed = cmd.speed; // limit speed
+                    }
+                    if(current_acc < cmd.acc){
+                        // if we are below the target acceleration, we need to increase jerk
+                        current_acc += cmd.jerk * dt;
+                        if (current_acc > cmd.acc) current_acc = cmd.acc; // limit acceleration
+                    }
+                    servo_data.current_speed.store(current_speed);
+                    servo_data.current_acc.store(current_acc);
+                    if (current_rad < cmd.target_rad) {
+                        current_rad += step;
+                        if (current_rad > cmd.target_rad) current_rad = cmd.target_rad;
+                    } else {
+                        current_rad -= step;
+                        if (current_rad < cmd.target_rad) current_rad = cmd.target_rad;
+                    }
                 }
-                if(current_acc < cmd.acc){
-                    // if we are below the target acceleration, we need to increase jerk
-                    current_acc += cmd.jerk * dt;
-                    if (current_acc > cmd.acc) current_acc = cmd.acc; // limit acceleration
-                }
-                servo_data.current_speed.store(current_speed);
-                servo_data.current_acc.store(current_acc);
-                if (current_rad < cmd.target_rad) {
-                    current_rad += step;
-                    if (current_rad > cmd.target_rad) current_rad = cmd.target_rad;
-                } else {
-                    current_rad -= step;
-                    if (current_rad < cmd.target_rad) current_rad = cmd.target_rad;
+                else{
+                    
                 }
 
                 set_servo_pos(current_rad);

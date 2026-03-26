@@ -46,15 +46,7 @@ void task_execute_servo(void *arg) {
 extern "C" void app_main() {
     //initializing wifi, uart comms, cube data (mac address) and servo controller
     ESP_LOGI("APP", "app_main start");
-
-#ifndef SKIP_WIFI_INIT
-    ESP_LOGI("APP", "calling init_wifi()");
     init_wifi();
-    ESP_LOGI("APP", "init_wifi() returned");
-#else
-    ESP_LOGW("APP", "SKIP_WIFI_INIT defined — skipping Wi‑Fi initialization");
-#endif
-
     ESP_LOGI("APP", "calling init_uart_comms()");
     init_uart_comms();
     ESP_LOGI("APP", "init_uart_comms() returned");
