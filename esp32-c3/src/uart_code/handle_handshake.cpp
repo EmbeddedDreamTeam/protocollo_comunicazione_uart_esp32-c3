@@ -165,7 +165,9 @@ void task_handle_handshakes(void* info){
       printf("MI SONO SVEGLIATO\n");
     }
 
-    free(msg);  
+    // msg was allocated with `new` in task_receive_uart/create_msg ->
+    // must use `delete` to release it. `free` corrupts the C++ heap.
+    delete msg;
   }
 }
 

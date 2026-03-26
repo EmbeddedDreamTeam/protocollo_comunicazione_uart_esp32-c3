@@ -31,16 +31,21 @@ void convert_servo_instructions(const std::vector<float>& angles){
     for (size_t i = 0; i < angles.size(); i++) {
         if (i >= (size_t)total_nodes) break; // Safety check
 
-        Payload p;
+        // Value-initialize the payload to avoid leaking uninitialized stack bytes
+        Payload p{};
         // Convert degree (uint16_t) to Radians (float) as expected by your Payload struct
         p.payload_servo.radians = angles[i] * (M_PI / 180.0f); //! ATTENTO ALLA CONVERSIONE IN RADIANTI, LA VUOI VERAMENTE???
-        
+        // Provide safe defaults for motion parameters if the sender doesn't set them
+        p.payload_servo.speed = 1.0f;           // default normalized speed (1.0 = full)
+        p.payload_servo.acceleration = 100.0f;  // reasonable default
+        p.payload_servo.jerk = 1500.0f;         // reasonable default
+
         int target_id = ids_arr[i];
 
         if (target_id == SELF_ID) {
             // It's for the Root: send to the local servo queue
             Msg* msg = create_msg(SELF_ID, SELF_ID, type_servo, p);
-            sort_new_msg(msg); 
+            sort_new_msg(msg);
         } else {
             // It's for a Slave: route it through UART
             Msg* msg = create_msg(SELF_ID, target_id, type_servo, p);
@@ -52,7 +57,8 @@ void convert_servo_instructions(const std::vector<float>& angles){
 
 //*BRIDGE ???
 void send_servo_movement_ack_to_root(int my_id, float radians){
-    Payload p;
+    // Ensure payload is zero-initialized to avoid garbage bytes
+    Payload p{};
     p.payload_servo.radians = radians;
     Msg* msg = create_msg(my_id, ROOT_ID, type_servo_ack, p);
     send_msg_to_master(msg);

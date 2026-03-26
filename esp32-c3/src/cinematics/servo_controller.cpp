@@ -32,7 +32,10 @@ void send_movement_ack(){
     ack.sender_id=SELF_ID;
     Msg* msg = create_msg(SELF_ID, MASTER_ID, type_servo_ack, Payload{.payload_servo_ack=ack});
     send_msg_to_master(msg);
-    delete msg; // Free the allocated message after sending
+    // Do NOT delete msg here: ownership is transferred to the send subsystem.
+    // The message pointer is queued and will be deleted by the task that
+    // actually sends UART bytes (task_send_uart). Deleting it here causes
+    // a use-after-free and intermittent crashes.
 }
 
 //TODO add task to send continuous updates about the position
