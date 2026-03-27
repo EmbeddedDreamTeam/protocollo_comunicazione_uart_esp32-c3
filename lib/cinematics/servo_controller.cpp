@@ -140,7 +140,7 @@ void move_servo_speed_task(void * pvParameters) {
                 float current_speed = servo_data.current_speed.load();
                 float current_acc = servo_data.current_acc.load();
                 float step = current_speed * dt; 
-                if(dir*current_rad<dir*mid_point){
+                //if(dir*current_rad<dir*mid_point){
                     if (current_speed<cmd.speed) {
                         // if we are below the target speed, we need to accelerate
                         current_speed += current_acc * dt;
@@ -160,10 +160,10 @@ void move_servo_speed_task(void * pvParameters) {
                         current_rad -= step;
                         if (current_rad < cmd.target_rad) current_rad = cmd.target_rad;
                     }
-                }
-                else{
+                // }
+                // else{
                     
-                }
+                // }
 
                 set_servo_pos(current_rad);
                 // periodically waking this function at a xFrequency rate
@@ -178,8 +178,9 @@ void move_servo_speed_task(void * pvParameters) {
 
 
 esp_err_t move_servo_speed(float rad, float speed, float acc, float jerk){
+    ESP_LOGI("SERVO_API", "move_servo_speed called with rad=%.2f, speed=%.2f, acc=%.2f, jerk=%.2f", rad, speed, acc, jerk);
     if (xServoQueue == NULL) {
-        //ESP_LOGE("SERVO_API", "Errore: Coda non inizializzata!");
+        ESP_LOGE("SERVO_API", "Errore: Coda non inizializzata!");
         return ESP_ERR_INVALID_STATE;
     }
 

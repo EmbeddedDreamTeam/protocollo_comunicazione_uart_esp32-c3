@@ -6,6 +6,7 @@
 #include <string>
 #include <array>
 #include <cstdio>
+#include <algorithm>
 
 using namespace std;
 
@@ -44,32 +45,37 @@ void print_ids_array(){
 
 
 void compute_ids_array(){
-    ids_array[0] = ROOT_ID; //ROOT_ID == 0
-    ids_array_len = 1; //reset the array
+    // Rebuild ids_array starting from ROOT_ID by searching for nodes that
+    // declare the current node as their master. This makes the algorithm
+    // independent from the order in which reports arrive and robust to
+    // temporary reordering.
+    ids_array[0] = ROOT_ID; // ROOT_ID == 0
+    ids_array_len = 1; // reset the array
 
-    int curr_node_id = 0;
-    PayloadReport curr_node = dict[0];
-    for(int i=0; i<MAX_NODES; i++){
-        int next_node_id = dict[curr_node_id].my_slave_id;
+    // Track which nodes have already been appended to avoid loops
+    bool used[MAX_NODES];
+    for (int i = 0; i < MAX_NODES; ++i) used[i] = false;
+    used[ROOT_ID] = true;
 
-        if(next_node_id > 0 && next_node_id < MAX_NODES && !is_dict_ix_empty[next_node_id]){
-            PayloadReport next_node = dict[next_node_id];
-
-            // print_node_info(curr_node);
-            // print_node_info(next_node);
-
-            if(next_node.my_master_id == curr_node.my_id){ //sono d'accordo sull essere MASTER e SLAVE
-                // cout << "in" << endl;
-                // print_node_info(curr_node);
-                ids_array[ids_array_len] = next_node_id;
-                ids_array_len++;
-
-                curr_node_id = next_node_id;
-                curr_node = next_node;
+    int curr_node_id = ROOT_ID;
+    for (int step = 0; step < MAX_NODES - 1; ++step) {
+        int found = -1;
+        // find a node j such that dict[j].my_master_id == curr_node_id
+        for (int j = 0; j < MAX_NODES; ++j) {
+            if (used[j]) continue;
+            if (is_dict_ix_empty[j]) continue;
+            if (dict[j].my_master_id == curr_node_id) {
+                found = j;
+                break;
             }
-        }else{
-            break;
         }
+
+        if (found == -1) break; // no successor found, chain ends here
+
+        // append found to ids_array
+        ids_array[ids_array_len++] = found;
+        used[found] = true;
+        curr_node_id = found;
     }
 }
 
@@ -135,6 +141,8 @@ void task_handle_report(void* arg){
     
     // printf("REPORT: SLAVE=%d, MY=%d, MASTER=%d\n", msg->payload.payload_report.my_slave_id, msg->payload.payload_report.my_id, msg->payload.payload_report.my_master_id);
     receive_new_report(msg->payload.payload_report);
+    // free the message allocated by the UART layer
+    delete msg;
   }
 }
 

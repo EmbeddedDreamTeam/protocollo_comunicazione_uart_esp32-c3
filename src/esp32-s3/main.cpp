@@ -3,6 +3,8 @@
 #include "utils_uart_comms.h"
 #include "init_wifi.h"
 #include "esp_mac.h"
+#include "esp_system.h"
+#include "esp_log.h"
 
 void init_cube();
 // void task_execute_servo(void *arg);
@@ -48,6 +50,25 @@ void task_execute_servo(void *arg) {
 }
 
 extern "C" void app_main() {
+    // Print reset reason early to determine if the board was reset or app_main returned
+    esp_reset_reason_t reason = esp_reset_reason();
+    const char* reason_str;
+    switch(reason){
+        case ESP_RST_UNKNOWN: reason_str = "UNKNOWN"; break;
+        case ESP_RST_POWERON: reason_str = "POWERON"; break;
+        case ESP_RST_EXT: reason_str = "EXTERNAL_RESET"; break;
+        case ESP_RST_SW: reason_str = "SOFTWARE_RESET"; break;
+        case ESP_RST_PANIC: reason_str = "PANIC"; break;
+        case ESP_RST_INT_WDT: reason_str = "INT_WDT"; break;
+        case ESP_RST_TASK_WDT: reason_str = "TASK_WDT"; break;
+        case ESP_RST_WDT: reason_str = "WDT"; break;
+        case ESP_RST_DEEPSLEEP: reason_str = "DEEPSLEEP"; break;
+        case ESP_RST_BROWNOUT: reason_str = "BROWNOUT"; break;
+        case ESP_RST_SDIO: reason_str = "SDIO"; break;
+        default: reason_str = "OTHER"; break;
+    }
+    ESP_LOGI("BOOT", "Reset reason: %d (%s)", reason, reason_str);
+
     //initializing wifi, uart comms, cube data (mac address) and servo controller
     init_wifi();
     init_uart_comms();
