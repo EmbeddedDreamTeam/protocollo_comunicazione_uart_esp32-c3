@@ -3,6 +3,7 @@
 #include "utils_uart_comms.h"
 #include "init_wifi.h"
 #include "esp_mac.h"
+#include "esp_log.h"
 
 void init_cube();
 void task_execute_servo(void *arg);
@@ -44,22 +45,26 @@ void task_execute_servo(void *arg) {
 
 extern "C" void app_main() {
     //initializing wifi, uart comms, cube data (mac address) and servo controller
-    //init_wifi();
+    ESP_LOGI("APP", "app_main start");
+    init_wifi();
+    ESP_LOGI("APP", "calling init_uart_comms()");
     init_uart_comms();
+    ESP_LOGI("APP", "init_uart_comms() returned");
+
     init_cube();
-    servo_init();
+    // servo_init();
 
     // create and start the task that listens for servo messages coming from
     // the UART/protocol layer and forwards movement commands to the
     // servo controller (move_servo_speed)
-    xTaskCreate(
-        task_execute_servo,
-        "ExecServoTask",
-        3072,
-        NULL,
-        2,
-        NULL
-    );
+    // xTaskCreate(
+    //     task_execute_servo,
+    //     "ExecServoTask",
+    //     3072,
+    //     NULL,
+    //     2,
+    //     NULL
+    // );
 
 }
 

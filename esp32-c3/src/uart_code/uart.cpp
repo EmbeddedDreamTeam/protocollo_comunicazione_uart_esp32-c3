@@ -78,6 +78,8 @@ void task_receive_uart(void *arg) {
     while (1) {
         Msg *msg = new Msg();
         memset(msg, 0, sizeof(Msg));
+        // Debug: log every allocation of a Msg
+        printf("[MSG_DBG] ALLOC msg=%p (zeroed)\n", (void*)msg);
         bool message_ok = false;
         uint8_t *buf = (uint8_t*)msg;
         const size_t frame_len = sizeof(Msg);
@@ -157,6 +159,7 @@ void task_receive_uart(void *arg) {
         if(msg->target_id == SELF_ID || msg->target_id == -1){ //! in ogni caso se -1 lo prendo io
             printf("ID: %d | RICEVUTO DA: %s | DESTINAZIONE: ME\n", SELF_ID, role);
             print_msg_struct(msg);
+            printf("[MSG_DBG] sort_new_msg enqueue msg=%p type=%d sender=%d target=%d\n", (void*)msg, msg->type, msg->sender_id, msg->target_id);
             sort_new_msg(msg);
         } else { 
             int uart_opposta = (int)!(bool)selected_uart;
@@ -165,6 +168,7 @@ void task_receive_uart(void *arg) {
             
             printf("ID: %d | RICEVUTO DA: %s | FORWARD TO: %s (PRESENTE: %d)\n", SELF_ID, role, tpr, esiste);
             print_msg_struct(msg);
+            printf("[MSG_DBG] forwarding msg=%p to uart=%d (opposta=%d)\n", (void*)msg, (int)selected_uart, uart_opposta);
             if(selected_uart == U_WITH_MASTER){
               send_msg_to_slave(msg);
             }else if(selected_uart == U_WITH_SLAVE){
@@ -228,26 +232,49 @@ void task_send_uart(void *arg){
 
 
 Msg* create_msg(int sender_id, int target_id, MsgType type, Payload payload){
-  Msg* msg = new Msg();
-  memset(msg, 0, sizeof(Msg));
+  Msg* msg = allocate_msg();
+  // ensure header/footer/ids are set
   msg->header = HEADER_BYTE;
   msg->footer = FOOTER_4_BYTES;
-
   msg->sender_id = sender_id;
   msg->target_id = target_id;
   msg->type = type;
-
   msg->payload = payload; //shallow copy
   return msg;
+}
+
+// Centralized allocation/deallocation to avoid mixing new/free across the codebase
+Msg* allocate_msg(){
+    Msg* msg = new Msg();
+    memset(msg, 0, sizeof(Msg));
+    return msg;
+}
+
+void free_msg(Msg* msg){
+    if(msg == nullptr) return;
+    delete msg;
 }
 
 
 // accumula tutti i messaggi che non puo inviare al suo master xche non lo conosce
 queue<Msg*> master_pre_init_buffer; 
 void send_buffered_messages_to_master(){
-    while(!master_pre_init_buffer.empty() && MASTER_ID != UNKNOWN_ID){
+    // Pop items from the buffered queue in a thread-safe way. Do NOT hold
+    // the mutex while calling xQueueSend because xQueueSend can block and
+    // would prevent other tasks from pushing into the buffer.
+    while (1) {
+        xSemaphoreTake(master_buffer_mutex, portMAX_DELAY);
+        if (master_pre_init_buffer.empty() || MASTER_ID == UNKNOWN_ID) {
+            xSemaphoreGive(master_buffer_mutex);
+            break;
+        }
         Msg* m = master_pre_init_buffer.front();
         master_pre_init_buffer.pop();
+        xSemaphoreGive(master_buffer_mutex);
+
+        // Send the pointer to the UART send queue. This may block, but we
+        // do it outside the mutex to avoid deadlocks and concurrent access
+        // issues with the std::queue.
         xQueueSend(h_queue_send_to_master, &m, portMAX_DELAY);
     }
 }
@@ -269,11 +296,20 @@ void send_msg_to_master(Msg* msg){
 // accumula tutti i messaggi che non puo inviare al suo slave xche non lo conosce
 queue<Msg*> slave_pre_init_buffer; 
 void send_buffered_messages_to_slave(){
-    while(!slave_pre_init_buffer.empty() && SLAVE_ID != UNKNOWN_ID){
-            Msg* m = slave_pre_init_buffer.front();
-            slave_pre_init_buffer.pop();
-            xQueueSend(h_queue_send_to_slave, &m, portMAX_DELAY);
+    // Same pattern as master: protect std::queue with semaphore but do the
+    // potentially-blocking xQueueSend outside the critical section.
+    while (1) {
+        xSemaphoreTake(slave_buffer_mutex, portMAX_DELAY);
+        if (slave_pre_init_buffer.empty() || SLAVE_ID == UNKNOWN_ID) {
+            xSemaphoreGive(slave_buffer_mutex);
+            break;
         }
+        Msg* m = slave_pre_init_buffer.front();
+        slave_pre_init_buffer.pop();
+        xSemaphoreGive(slave_buffer_mutex);
+
+        xQueueSend(h_queue_send_to_slave, &m, portMAX_DELAY);
+    }
 }
 
 
