@@ -1,0 +1,777 @@
+---- Reopened serial port COM11 ----
+
+START START START START START START START START!!!
+blockprint_mutex: 0x3fc97804
+
+UART: 1, tx_pin: 3, rx_pin: 2
+
+UART: 0, tx_pin: 9, rx_pin: 10
+[MSG_DBG] ALLOC msg=0x3fc9bc64 (zeroed)
+[MSG_DBG] ALLOC msg=0x3fc9e670 (zeroed)
+I (1747) CUBE_INIT: MAC Address: 0C:4E:A0:64:B0:84
+I (1747) SERVO_API: move_servo_speed called with rad=0.00, speed=1.00, acc=100.00, jerk=1500.00
+I (1747) SERVO_API: Posizione impostata: 0.10 rad
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: SLAVE, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fca79dc
+Sender: 1
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: MtS
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: MASTER, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fca8fe8
+Sender: 1
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: StM
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+================[__SEND UART]================
+
+================[__SEND UART]================
+
+I (1767) SERVO_API: Posizione impostata: 0.10 rad
+
+================[RECEIVE UART]================
+ID: 1 | RICEVUTO DA: SLAVE | DESTINAZIONE: ME
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fc9e670
+Sender: 2
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: StM
+__PRINTING STRUCT MESSAGE.
+[MSG_DBG] sort_new_msg enqueue msg=0x3fc9e670 type=2 sender=2 target=-1
+>>> SLAVE CHANGED FROM -1 TO 2
+================[__RECEIVE UART]================
+
+[MSG_DBG] ALLOC msg=0x3fc9e670 (zeroed)
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: SLAVE, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fca79dc
+Sender: 1
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: StM_ack
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+================[__SEND UART]================
+
+I (1787) SERVO_API: Posizione impostata: 0.10 rad
+
+================[RECEIVE UART]================
+ID: 1 | RICEVUTO DA: SLAVE | FORWARD TO: MASTER (PRESENTE: 0)
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fc9e670
+Sender: 2
+Target: 0
+Type: REPORT
+Header: 170
+Footer: 3405691582
+Payload (REPORT)
+my_slave_id: -1
+my_id: 2
+my_master_id: 1
+__PRINTING STRUCT MESSAGE.
+[MSG_DBG] forwarding msg=0x3fc9e670 to uart=1 (opposta=0)
+================[__RECEIVE UART]================
+
+[MSG_DBG] ALLOC msg=0x3fca79dc (zeroed)
+I (1807) SERVO_API: Posizione impostata: 0.09 rad
+I (1827) SERVO_API: Posizione impostata: 0.07 rad
+I (1847) SERVO_API: Posizione impostata: 0.05 rad
+I (1867) SERVO_API: Posizione impostata: 0.03 rad
+I (1887) SERVO_API: Posizione impostata: 0.01 rad
+I (1907) SERVO_API: Posizione impostata: 0.00 rad
+
+================[RECEIVE UART]================
+ID: 1 | RICEVUTO DA: SLAVE | DESTINAZIONE: ME
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fca79dc
+Sender: 2
+Target: 1
+Type: SERVO_ACK
+Header: 170
+Footer: 3405691582
+Payload (SERVO)
+servo radians: 0.000000
+__PRINTING STRUCT MESSAGE.
+[MSG_DBG] sort_new_msg enqueue msg=0x3fca79dc type=5 sender=2 target=1
+else if(msg->type == type_servo_ack){ !!! !!! !!!
+================[__RECEIVE UART]================
+
+[MSG_DBG] ALLOC msg=0x3fcaa8a4 (zeroed)
+
+================[RECEIVE UART]================
+ID: 1 | RICEVUTO DA: MASTER | DESTINAZIONE: ME
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fc9bc64
+Sender: 0
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: MtS
+__PRINTING STRUCT MESSAGE.
+[MSG_DBG] sort_new_msg enqueue msg=0x3fc9bc64 type=2 sender=0 target=-1
+>>> MASTER CHANGED FROM -1 TO 0
+================[__RECEIVE UART]================
+
+[MSG_DBG] ALLOC msg=0x3fc9bc64 (zeroed)
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: MASTER, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcaa958
+Sender: 1
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: MtS_ack
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+================[__SEND UART]================
+
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: MASTER, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcaaa0c
+Sender: 1
+Target: 0
+Type: REPORT
+Header: 170
+Footer: 3405691582
+Payload (REPORT)
+my_slave_id: 2
+my_id: 1
+my_master_id: 0
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+================[__SEND UART]================
+
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: MASTER, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fca8fe8
+Sender: 1
+Target: 0
+Type: REPORT
+Header: 170
+Footer: 3405691582
+Payload (REPORT)
+my_slave_id: 2
+my_id: 1
+my_master_id: -1
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+================[__SEND UART]================
+
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: MASTER, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fc9e670
+Sender: 2
+Target: 0
+Type: REPORT
+Header: 170
+Footer: 3405691582
+Payload (REPORT)
+my_slave_id: -1
+my_id: 2
+my_master_id: 1
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+================[__SEND UART]================
+
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: MASTER, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcaa5f4
+Sender: 1
+Target: -1
+Type: SERVO_ACK
+Header: 170
+Footer: 3405691582
+Payload (SERVO)
+servo radians: 0.000000
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+================[__SEND UART]================
+
+I (2747) main_task: Returned from app_main()
+
+================[RECEIVE UART]================
+ID: 1 | RICEVUTO DA: SLAVE | DESTINAZIONE: ME
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcaa8a4
+Sender: 2
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: StM
+__PRINTING STRUCT MESSAGE.
+[MSG_DBG] sort_new_msg enqueue msg=0x3fcaa8a4 type=2 sender=2 target=-1
+================[__RECEIVE UART]================
+
+[MSG_DBG] ALLOC msg=0x3fcaa8a4 (zeroed)
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: SLAVE, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcaa5f4
+Sender: 1
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: StM_ack
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+================[__SEND UART]================
+
+
+================[RECEIVE UART]================
+ID: 1 | RICEVUTO DA: MASTER | DESTINAZIONE: ME
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fc9bc64
+Sender: 0
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: MtS
+__PRINTING STRUCT MESSAGE.
+[MSG_DBG] sort_new_msg enqueue msg=0x3fc9bc64 type=2 sender=0 target=-1
+================[__RECEIVE UART]================
+
+[MSG_DBG] ALLOC msg=0x3fc9bc64 (zeroed)
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: MASTER, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcaa5f4
+Sender: 1
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: MtS_ack
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+================[__SEND UART]================
+
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: SLAVE, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcaa5f4
+Sender: 1
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: MtS
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: MASTER, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcac9d0
+Sender: 1
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: StM
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+================[__SEND UART]================
+
+================[__SEND UART]================
+
+
+================[RECEIVE UART]================
+ID: 1 | RICEVUTO DA: SLAVE | DESTINAZIONE: ME
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcaa8a4
+Sender: 2
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: MtS_ack
+__PRINTING STRUCT MESSAGE.
+[MSG_DBG] sort_new_msg enqueue msg=0x3fcaa8a4 type=2 sender=2 target=-1
+DOVREI SVEGLIARMI
+MI SONO SVEGLIATO
+
+================[RECEIVE UART]================
+ID: 1 | RICEVUTO DA: MASTER | DESTINAZIONE: ME
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fc9bc64
+Sender: 0
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: StM_ack
+__PRINTING STRUCT MESSAGE.
+[MSG_DBG] sort_new_msg enqueue msg=0x3fc9bc64 type=2 sender=0 target=-1
+DOVREI SVEGLIARMI
+MI SONO SVEGLIATO
+================[__RECEIVE UART]================
+
+[MSG_DBG] ALLOC msg=0x3fc9bc64 (zeroed)
+================[__RECEIVE UART]================
+
+[MSG_DBG] ALLOC msg=0x3fcaa8a4 (zeroed)
+
+================[RECEIVE UART]================
+ID: 1 | RICEVUTO DA: SLAVE | DESTINAZIONE: ME
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fc9bc64
+Sender: 2
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: StM
+__PRINTING STRUCT MESSAGE.
+[MSG_DBG] sort_new_msg enqueue msg=0x3fc9bc64 type=2 sender=2 target=-1
+================[__RECEIVE UART]================
+
+[MSG_DBG] ALLOC msg=0x3fc9bc64 (zeroed)
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: SLAVE, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcaa5f4
+Sender: 1
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: StM_ack
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+================[__SEND UART]================
+
+
+================[RECEIVE UART]================
+ID: 1 | RICEVUTO DA: MASTER | DESTINAZIONE: ME
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcaa8a4
+Sender: 0
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: MtS
+__PRINTING STRUCT MESSAGE.
+[MSG_DBG] sort_new_msg enqueue msg=0x3fcaa8a4 type=2 sender=0 target=-1
+================[__RECEIVE UART]================
+
+[MSG_DBG] ALLOC msg=0x3fcaa8a4 (zeroed)
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: MASTER, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcaa5f4
+Sender: 1
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: MtS_ack
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+================[__SEND UART]================
+
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: SLAVE, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcaa5f4
+Sender: 1
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: MtS
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: MASTER, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcac9d0
+Sender: 1
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: StM
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+================[__SEND UART]================
+
+================[__SEND UART]================
+
+
+================[RECEIVE UART]================
+ID: 1 | RICEVUTO DA: SLAVE | DESTINAZIONE: ME
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fc9bc64
+Sender: 2
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: MtS_ack
+__PRINTING STRUCT MESSAGE.
+[MSG_DBG] sort_new_msg enqueue msg=0x3fc9bc64 type=2 sender=2 target=-1
+DOVREI SVEGLIARMI
+MI SONO SVEGLIATO
+
+================[RECEIVE UART]================
+ID: 1 | RICEVUTO DA: MASTER | DESTINAZIONE: ME
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcaa8a4
+Sender: 0
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: StM_ack
+__PRINTING STRUCT MESSAGE.
+[MSG_DBG] sort_new_msg enqueue msg=0x3fcaa8a4 type=2 sender=0 target=-1
+DOVREI SVEGLIARMI
+MI SONO SVEGLIATO
+================[__RECEIVE UART]================
+
+[MSG_DBG] ALLOC msg=0x3fcaa8a4 (zeroed)
+================[__RECEIVE UART]================
+
+[MSG_DBG] ALLOC msg=0x3fc9bc64 (zeroed)
+
+================[RECEIVE UART]================
+ID: 1 | RICEVUTO DA: SLAVE | DESTINAZIONE: ME
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcaa8a4
+Sender: 2
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: StM
+__PRINTING STRUCT MESSAGE.
+[MSG_DBG] sort_new_msg enqueue msg=0x3fcaa8a4 type=2 sender=2 target=-1
+================[__RECEIVE UART]================
+
+[MSG_DBG] ALLOC msg=0x3fcaa8a4 (zeroed)
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: SLAVE, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcaa5f4
+Sender: 1
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: StM_ack
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+================[__SEND UART]================
+
+
+================[RECEIVE UART]================
+ID: 1 | RICEVUTO DA: MASTER | DESTINAZIONE: ME
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fc9bc64
+Sender: 0
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: MtS
+__PRINTING STRUCT MESSAGE.
+[MSG_DBG] sort_new_msg enqueue msg=0x3fc9bc64 type=2 sender=0 target=-1
+================[__RECEIVE UART]================
+
+[MSG_DBG] ALLOC msg=0x3fc9bc64 (zeroed)
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: MASTER, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcaa5f4
+Sender: 1
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: MtS_ack
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+================[__SEND UART]================
+
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: SLAVE, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcaa5f4
+Sender: 1
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: MtS
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: MASTER, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcac9d0
+Sender: 1
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: StM
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+================[__SEND UART]================
+
+================[__SEND UART]================
+
+
+================[RECEIVE UART]================
+ID: 1 | RICEVUTO DA: SLAVE | DESTINAZIONE: ME
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcaa8a4
+Sender: 2
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: MtS_ack
+__PRINTING STRUCT MESSAGE.
+[MSG_DBG] sort_new_msg enqueue msg=0x3fcaa8a4 type=2 sender=2 target=-1
+DOVREI SVEGLIARMI
+MI SONO SVEGLIATO
+
+================[RECEIVE UART]================
+ID: 1 | RICEVUTO DA: MASTER | DESTINAZIONE: ME
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fc9bc64
+Sender: 0
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: StM_ack
+__PRINTING STRUCT MESSAGE.
+[MSG_DBG] sort_new_msg enqueue msg=0x3fc9bc64 type=2 sender=0 target=-1
+DOVREI SVEGLIARMI
+MI SONO SVEGLIATO
+================[__RECEIVE UART]================
+
+[MSG_DBG] ALLOC msg=0x3fc9bc64 (zeroed)
+================[__RECEIVE UART]================
+
+[MSG_DBG] ALLOC msg=0x3fcaa8a4 (zeroed)
+
+================[RECEIVE UART]================
+ID: 1 | RICEVUTO DA: SLAVE | DESTINAZIONE: ME
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fc9bc64
+Sender: 2
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: StM
+__PRINTING STRUCT MESSAGE.
+[MSG_DBG] sort_new_msg enqueue msg=0x3fc9bc64 type=2 sender=2 target=-1
+================[__RECEIVE UART]================
+
+[MSG_DBG] ALLOC msg=0x3fc9bc64 (zeroed)
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: SLAVE, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcaa5f4
+Sender: 1
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: StM_ack
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+================[__SEND UART]================
+
+
+================[RECEIVE UART]================
+ID: 1 | RICEVUTO DA: MASTER | DESTINAZIONE: ME
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcaa8a4
+Sender: 0
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: MtS
+__PRINTING STRUCT MESSAGE.
+[MSG_DBG] sort_new_msg enqueue msg=0x3fcaa8a4 type=2 sender=0 target=-1
+================[__RECEIVE UART]================
+
+[MSG_DBG] ALLOC msg=0x3fcaa8a4 (zeroed)
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: MASTER, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcaa5f4
+Sender: 1
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: MtS_ack
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+================[__SEND UART]================
+
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: SLAVE, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcaa5f4
+Sender: 1
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: MtS
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+
+================[SEND UART]================
+SONO: 1, HO INVIATO INVIO A: MASTER, IL SEGUENTE MESSAGGIO:
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcac9d0
+Sender: 1
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: StM
+__PRINTING STRUCT MESSAGE.
+Tutti i byte inviati correttamente
+================[__SEND UART]================
+
+================[__SEND UART]================
+
+
+================[RECEIVE UART]================
+ID: 1 | RICEVUTO DA: SLAVE | DESTINAZIONE: ME
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fc9bc64
+Sender: 2
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: MtS_ack
+__PRINTING STRUCT MESSAGE.
+[MSG_DBG] sort_new_msg enqueue msg=0x3fc9bc64 type=2 sender=2 target=-1
+DOVREI SVEGLIARMI
+MI SONO SVEGLIATO
+
+================[RECEIVE UART]================
+ID: 1 | RICEVUTO DA: MASTER | DESTINAZIONE: ME
+PRINTING STRUCT MESSAGE:
+HEAP PT: 0x3fcaa8a4
+Sender: 0
+Target: -1
+Type: HANDSHAKE
+Header: 170
+Footer: 3405691582
+Payload (HANDSHAKE)
+Handshake Type: StM_ack
+__PRINTING STRUCT MESSAGE.
+[MSG_DBG] sort_new_msg enqueue msg=0x3fcaa8a4 type=2 sender=0 target=-1
+DOVREI SVEGLIARMI
+MI SONO SVEGLIATO
+================[__RECEIVE UART]================
+
+[MSG_DBG] ALLOC msg=0x3fcaa8a4 (zeroed)
+================[__RECEIVE UART]================
+
+[MSG_DBG] ALLOC msg=0x3fc9bc64 (zeroed)
+E BOD: Brownout detector was triggered
+
+
+---- Closed serial port COM11 due to disconnection from the machine ----

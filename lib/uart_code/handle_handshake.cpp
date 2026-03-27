@@ -19,12 +19,22 @@ void send_report_to_root(){
   p.payload_report.my_master_id = MASTER_ID;
   p.payload_report.my_slave_id = SLAVE_ID;
 
+  // If I'm the root, handle the report locally
   if(SELF_ID == ROOT_ID){
     receive_new_report(p.payload_report); //chiami direttamente il modulo
-  }else{
-    Msg* m = create_msg(SELF_ID, ROOT_ID, type_report, p);
-    send_msg_to_master(m);
+    return;
   }
+
+  // If I don't yet know my master, defer sending a report to avoid
+  // producing stale reports that would later overwrite a fresher state
+  // on the root (see issue with buffered reports).
+  if(MASTER_ID == UNKNOWN_ID){
+    printf("[HANDSHAKE] MASTER unknown for SELF %d, deferring report\n", SELF_ID);
+    return;
+  }
+
+  Msg* m = create_msg(SELF_ID, ROOT_ID, type_report, p);
+  send_msg_to_master(m);
 }
 
 const int PING_SLAVE_WAIT_FOR_ACK_MAX_DELAY = 2000;
