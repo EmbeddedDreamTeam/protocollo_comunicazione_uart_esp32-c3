@@ -46,13 +46,13 @@ typedef struct{
 
 typedef struct{
     int sender_id;
-}ServoAck;
+}PayloadServoAck;
 
 typedef struct{
     float curr_radians;
     float curr_speed;
     float curr_acc;
-}CinematicUpdate;
+}PayloadCinematicUpdate;
 
 
 //con le union alloca sempre i byte x il messaggio + lungo
@@ -62,6 +62,8 @@ typedef union{
     PayloadHandshake payload_handshake;
     PayloadReport payload_report;
     PayloadServo payload_servo;
+    PayloadServoAck payload_servo_ack;
+    PayloadCinematicUpdate payload_cinematic_update;
 }Payload;
 
 
@@ -73,6 +75,7 @@ typedef enum{
     type_report,
     type_servo,
     type_servo_ack,
+    type_cinematic_update,
 }MsgType;
 typedef struct __attribute__((packed)){
     uint8_t header;

@@ -25,8 +25,8 @@ using namespace std;
 #define U_WITH_MASTER 0
 #define U_WITH_SLAVE 1
 
-#define FROM_MASTER_RX 9
-#define TO_MASTER_TX 10
+#define FROM_MASTER_RX 10
+#define TO_MASTER_TX 9
 #define FROM_SLAVE_RX 2
 #define TO_SLAVE_TX 3
 
@@ -102,6 +102,9 @@ void print_msg_struct(Msg* msg);
 void sort_new_msg(Msg *msg);
 void task_receive_uart(void *arg);
 Msg* create_msg(int sender_id, int target_id, MsgType type, Payload payload);
+// allocation helpers for Msg objects (centralize new/delete to detect double-frees)
+Msg* allocate_msg();
+void free_msg(Msg* msg);
 void send_buffered_messages_to_master();
 void send_msg_to_master(Msg* msg);
 void send_buffered_messages_to_slave();

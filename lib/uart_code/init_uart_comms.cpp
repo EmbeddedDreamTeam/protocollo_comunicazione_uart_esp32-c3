@@ -32,12 +32,12 @@ void init_uart_comms(){
   //todo for test
   
   //!!!ID!!!
-  SELF_ID = 2; 
+  SELF_ID = 0; 
 
   //*TEST
   bool USE_DEFAULT_IDS = 0; //! NON INIZIALIZZA la logica di handshake
   bool TEST_FUN = 0;
-  int INIT_PAUSE = 10000;
+  int INIT_PAUSE = 1500;
 
   //*UART
   PRINT_RECEIVED_BYTES = 0;
@@ -117,12 +117,12 @@ void init_uart_comms(){
   }
 
 
-  //! REMOVE
-  if(SELF_ID == ROOT_ID){
-    vTaskDelay(pdMS_TO_TICKS(5000));
-    printf("TESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTEST\n");
-    convert_servo_instructions({0.5f, 1.0f, 1.5f});
-  }
+  // //! REMOVE
+  // if(SELF_ID == ROOT_ID){
+  //   vTaskDelay(pdMS_TO_TICKS(5000));
+  //   printf("TESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTEST\n");
+  //   convert_servo_instructions({0.5f, 1.0f, 1.5f});
+  // }
   
 
   //todo TEST FUNCTION

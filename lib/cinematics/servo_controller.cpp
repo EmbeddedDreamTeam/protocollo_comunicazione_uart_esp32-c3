@@ -21,20 +21,24 @@ ServoData servo_data = {
     .max_acc = 100.0f,
     .max_jerk = 1500.0f, //to have a fluid movement, the servo should be able to reach the target acceleration in 0.1 seconds, so jerk = acc / 0.1s
 };
-
+//TODO trim servo in order to have the middle point aligned correctly
 void servo_timer_init();
 void move_servo_speed_task(void * pvParameters);
 void send_movement_ack();
 
+//TODO forse questa funzione era già stata fatta da cesare?
 void send_movement_ack(){
-    PayloadServo payload;
-    payload.radians = servo_data.current_pos.load();
-    payload.speed = servo_data.current_speed.load();
-    payload.acceleration = servo_data.current_acc.load();
-    Msg* msg = create_msg(SELF_ID, MASTER_ID, type_servo_ack, Payload{.payload_servo=payload});
+    PayloadServoAck ack;
+    ack.sender_id=SELF_ID;
+    Msg* msg = create_msg(SELF_ID, MASTER_ID, type_servo_ack, Payload{.payload_servo_ack=ack});
     send_msg_to_master(msg);
-    delete msg; // Free the allocated message after sending
+    // Do NOT delete msg here: ownership is transferred to the send subsystem.
+    // The message pointer is queued and will be deleted by the task that
+    // actually sends UART bytes (task_send_uart). Deleting it here causes
+    // a use-after-free and intermittent crashes.
 }
+
+//TODO add task to send continuous updates about the position
 
 void servo_timer_init(){
     servo_data.duty_res =ledc_find_suitable_duty_resolution(80000000, 50);//auto clock freq of 80MHz and timer freq of 50Hz, the most common servo frequency
@@ -90,7 +94,7 @@ esp_err_t set_servo_pos(float rad){
     }
 
 }
-
+//TODO implement deceleration
 void move_servo_speed_task(void * pvParameters) {
     ServoTaskParams cmd;
     
@@ -101,6 +105,16 @@ void move_servo_speed_task(void * pvParameters) {
     while (1) {
         if (xQueueReceive(xServoQueue, &cmd, portMAX_DELAY)) {
             float current_rad = servo_data.current_pos.load();
+            float mid_point;
+            int dir;
+            if (cmd.target_rad > current_rad){
+                dir = 1;
+                mid_point = current_rad + (cmd.target_rad - current_rad) / 2.0f;
+            }
+            else{
+                dir = -1;
+                mid_point = cmd.target_rad + (current_rad - cmd.target_rad) / 2.0f;
+            }
             // initializing time: count of ticks since vTaskStartScheduler was called
             //number of ticks of the previus command
             xLastWakeTime = xTaskGetTickCount();
@@ -126,24 +140,29 @@ void move_servo_speed_task(void * pvParameters) {
                 float current_speed = servo_data.current_speed.load();
                 float current_acc = servo_data.current_acc.load();
                 float step = current_speed * dt; 
-                if (current_speed<cmd.speed) {
-                    // if we are below the target speed, we need to accelerate
-                    current_speed += current_acc * dt;
-                    if (current_speed > cmd.speed) current_speed = cmd.speed; // limit speed
+                if(dir*current_rad<dir*mid_point){
+                    if (current_speed<cmd.speed) {
+                        // if we are below the target speed, we need to accelerate
+                        current_speed += current_acc * dt;
+                        if (current_speed > cmd.speed) current_speed = cmd.speed; // limit speed
+                    }
+                    if(current_acc < cmd.acc){
+                        // if we are below the target acceleration, we need to increase jerk
+                        current_acc += cmd.jerk * dt;
+                        if (current_acc > cmd.acc) current_acc = cmd.acc; // limit acceleration
+                    }
+                    servo_data.current_speed.store(current_speed);
+                    servo_data.current_acc.store(current_acc);
+                    if (current_rad < cmd.target_rad) {
+                        current_rad += step;
+                        if (current_rad > cmd.target_rad) current_rad = cmd.target_rad;
+                    } else {
+                        current_rad -= step;
+                        if (current_rad < cmd.target_rad) current_rad = cmd.target_rad;
+                    }
                 }
-                if(current_acc < cmd.acc){
-                    // if we are below the target acceleration, we need to increase jerk
-                    current_acc += cmd.jerk * dt;
-                    if (current_acc > cmd.acc) current_acc = cmd.acc; // limit acceleration
-                }
-                servo_data.current_speed.store(current_speed);
-                servo_data.current_acc.store(current_acc);
-                if (current_rad < cmd.target_rad) {
-                    current_rad += step;
-                    if (current_rad > cmd.target_rad) current_rad = cmd.target_rad;
-                } else {
-                    current_rad -= step;
-                    if (current_rad < cmd.target_rad) current_rad = cmd.target_rad;
+                else{
+                    
                 }
 
                 set_servo_pos(current_rad);
