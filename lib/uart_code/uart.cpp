@@ -270,12 +270,9 @@ void send_buffered_messages_to_master(){
         }
         Msg* m = master_pre_init_buffer.front();
         master_pre_init_buffer.pop();
+        xQueueSend(h_queue_send_to_master, &m, portMAX_DELAY); //! fix: ho rimesso questa riga dentro al semaforo
+        
         xSemaphoreGive(master_buffer_mutex);
-
-        // Send the pointer to the UART send queue. This may block, but we
-        // do it outside the mutex to avoid deadlocks and concurrent access
-        // issues with the std::queue.
-        xQueueSend(h_queue_send_to_master, &m, portMAX_DELAY);
     }
 }
 
@@ -306,9 +303,9 @@ void send_buffered_messages_to_slave(){
         }
         Msg* m = slave_pre_init_buffer.front();
         slave_pre_init_buffer.pop();
-        xSemaphoreGive(slave_buffer_mutex);
+        xQueueSend(h_queue_send_to_slave, &m, portMAX_DELAY); //! fix: ho rimesso questa riga dentro al semaforo
 
-        xQueueSend(h_queue_send_to_slave, &m, portMAX_DELAY);
+        xSemaphoreGive(slave_buffer_mutex);
     }
 }
 

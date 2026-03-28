@@ -37,8 +37,8 @@ void send_report_to_root(){
   send_msg_to_master(m);
 }
 
-const int PING_SLAVE_WAIT_FOR_ACK_MAX_DELAY = 2000;
-const int PING_MASTER_WAIT_FOR_ACK_MAX_DELAY = 2000;
+const int PING_SLAVE_WAIT_FOR_ACK_MAX_DELAY = 5000; //! fix: do alle schedine 5s per rispondere ad un hanshake invece che 2s
+const int PING_MASTER_WAIT_FOR_ACK_MAX_DELAY = 5000;
 
 const int PING_SLAVE_SEND_NEW_HANDSHAKE_DELAY = 10000;
 const int PING_MASTER_SEND_NEW_HANDSHAKE_DELAY = 10000;
@@ -132,7 +132,7 @@ void task_handle_handshakes(void* info){
     Msg *msg = nullptr;
     xQueueReceive(h_queue_handshake, &msg, portMAX_DELAY);
 
-    if(msg->payload.payload_handshake.handshake_type == type_MtS){ // il master fa ciao rispondigli
+    if(msg->payload.payload_handshake.handshake_type == type_MtS){ //* il master fa ciao rispondigli
       Payload p;
       p.payload_handshake.handshake_type = type_MtS_ack;
       Msg* nm = create_msg(SELF_ID, UNKNOWN_ID, type_handshake, p);
@@ -141,8 +141,8 @@ void task_handle_handshakes(void* info){
       if(msg->sender_id != MASTER_ID){
         printf(">>> MASTER CHANGED FROM %d TO %d\n", MASTER_ID, msg->sender_id);
         MASTER_ID = msg->sender_id; 
+        send_buffered_messages_to_master(); //! fix: ho invertito questa righa e quella dopo
         send_report_to_root(); //so che non è -1 in quanto ho ricevuto un messaggio da qualcuno; 
-        send_buffered_messages_to_master();
       }
 
     } else if(msg->payload.payload_handshake.handshake_type == type_MtS_ack){
@@ -153,7 +153,7 @@ void task_handle_handshakes(void* info){
       xTaskNotifyGive(handle_task_ping_slave); //ping_slave sends type_MtS
       printf("MI SONO SVEGLIATO\n");
 
-    } else if(msg->payload.payload_handshake.handshake_type == type_StM){ 
+    } else if(msg->payload.payload_handshake.handshake_type == type_StM){  //* lo slave fa ciao rispondigli
       Payload p;
       p.payload_handshake.handshake_type = type_StM_ack;
       Msg* nm = create_msg(SELF_ID, UNKNOWN_ID, type_handshake, p);
@@ -162,8 +162,8 @@ void task_handle_handshakes(void* info){
       if(msg->sender_id != SLAVE_ID){
         printf(">>> SLAVE CHANGED FROM %d TO %d\n", SLAVE_ID, msg->sender_id);
         SLAVE_ID = msg->sender_id; 
+        send_buffered_messages_to_slave(); //! fix: ho invertito questa righa e quella dopo
         send_report_to_root();
-        send_buffered_messages_to_slave();
       }
 
     } else if(msg->payload.payload_handshake.handshake_type == type_StM_ack){
