@@ -1,9 +1,22 @@
 # Seleziona sorgenti in base al target
 # NON ELIMINARE NON È AUTOGENERATO DA PLATFORMIO
 if(CONFIG_IDF_TARGET_ESP32C3)
-    FILE(GLOB_RECURSE app_sources 
-        ${CMAKE_SOURCE_DIR}/src/esp32-c3/*.* 
-        ${CMAKE_SOURCE_DIR}/lib/*.*)
+
+    if(TEST_CINEMATICS)
+        message(STATUS "Building TEST_CINEMATICS for ESP32-C3")
+
+        FILE(GLOB_RECURSE app_sources 
+            ${CMAKE_SOURCE_DIR}/tests/esp32-c3/cinematics/*.*
+            ${CMAKE_SOURCE_DIR}/lib/*.*)
+
+    else()
+        message(STATUS "Building NORMAL ESP32-C3")
+
+        FILE(GLOB_RECURSE app_sources 
+            ${CMAKE_SOURCE_DIR}/src/esp32-c3/*.*
+            ${CMAKE_SOURCE_DIR}/lib/*.*)
+
+    endif()
 elseif(CONFIG_IDF_TARGET_ESP32S3)
     FILE(GLOB_RECURSE app_sources 
         ${CMAKE_SOURCE_DIR}/src/esp32-s3/*.* 
