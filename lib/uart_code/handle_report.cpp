@@ -85,10 +85,12 @@ void receive_new_report(PayloadReport p){
     is_dict_ix_empty[p.my_id] = false;
 
     compute_ids_array();
-    cout << "RECEIVED NEW REPORT:" << endl;
-    print_node_info(p);
-    print_ids_array();
-    cout << "___RECEIVED NEW REPORT:" << endl;
+    if(SHOW_UART_COMMS_LOGS){
+        cout << "RECEIVED NEW REPORT:" << endl;
+        print_node_info(p);
+        print_ids_array();
+        cout << "___RECEIVED NEW REPORT:" << endl;
+    }
     ProtocolManager::set_num_servos((uint8_t)get_ids_array_len());
 }
 

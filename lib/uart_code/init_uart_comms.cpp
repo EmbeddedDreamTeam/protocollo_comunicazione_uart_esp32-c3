@@ -82,7 +82,8 @@ void init_uart_comms(){
 
   // esp_task_wdt_deinit();
   vTaskDelay(pdMS_TO_TICKS(INIT_PAUSE)); //!ATTENTO - RIMUOVERE O SETTARE A 1500
-  printf("\nSTART START START START START START START START!!!\n");
+  if(SHOW_UART_COMMS_LOGS)
+    printf("\nSTARTED init_uart_comms - STARTED init_uart_comms - STARTED init_uart_comms - STARTED init_uart_comms\n");
 
   //*LED SETUP
   init_led();

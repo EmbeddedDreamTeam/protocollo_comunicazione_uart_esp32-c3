@@ -19,8 +19,8 @@ bool already_done = 0;
 void init_uart_mutexes(){
     master_buffer_mutex = xSemaphoreCreateMutex();
     slave_buffer_mutex = xSemaphoreCreateMutex();
-    block_print_mutex = xSemaphoreCreateMutex();
-    printf("blockprint_mutex: %p\n", (void*)block_print_mutex);
+    // block_print_mutex = xSemaphoreCreateMutex(); //crasha sempre il programma non ne vale la pena
+    // printf("blockprint_mutex: %p\n", (void*)block_print_mutex);
 }
 
 
@@ -42,9 +42,9 @@ void init_uart(uart_port_t uart_num, int rx_pin, int tx_pin) {
     uart_set_pin(uart_num, tx_pin, rx_pin, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
     gpio_set_pull_mode((gpio_num_t)rx_pin, GPIO_PULLUP_ONLY); 
 
-    if(SELF_ID == 1){ 
-      printf("\nUART: %d, tx_pin: %d, rx_pin: %d\n", uart_num, tx_pin, rx_pin);
-    }
+    // if(SELF_ID == 1){ 
+    //   printf("\nUART: %d, tx_pin: %d, rx_pin: %d\n", uart_num, tx_pin, rx_pin);
+    // }
 }
 
 
@@ -61,12 +61,15 @@ void sort_new_msg(Msg *msg){
         xQueueSend(h_queue_report, &msg, portMAX_DELAY);
     }else if(msg->type == type_servo){
         xQueueSend(h_queue_servo, &msg, portMAX_DELAY);
-    }else if(msg->type == type_servo_ack){
-        printf("else if(msg->type == type_servo_ack){ !!! !!! !!!\n");
+    }else if(msg->type == type_servo_ack){ //! PROBLEMA - QUESTO FA SCHIFO
         //TODO ideally call a function to handle it
-        // xQueueSend(h_queue_servo, &msg, portMAX_DELAY); //!DOESNT DELETE THE MSG !!!! 
+        printf("==================================================================\n");
+        printf("(DOVREI ESSERE ROOT SE NO è SBAGLIATO)\nSONO %d HO RICEVUTO type_servo_ack LO CANCELLO, IMPLEMENTALA STA FUNZIONE!!\n", SELF_ID);
+        printf("==================================================================\n");
+        free_msg(msg);
     }else{
-        printf("ERRORE: [sort_new_msg] type: %i , non esiste\n", msg->type);
+        if(SHOW_UART_COMMS_LOGS)
+            printf("ERRORE: [sort_new_msg] type: %i , non esiste\n", msg->type);
     }
 }
 
@@ -78,19 +81,21 @@ void task_receive_uart(void *arg) {
     while (1) {
         Msg *msg = new Msg();
         memset(msg, 0, sizeof(Msg));
-        // Debug: log every allocation of a Msg
-        printf("[MSG_DBG] ALLOC msg=%p (zeroed)\n", (void*)msg);
+        if(SHOW_UART_COMMS_LOGS)
+            printf("[MSG_DBG] ALLOC msg=%p (zeroed)\n", (void*)msg); // Debug: log every allocation of a Msg
+
         bool message_ok = false;
         uint8_t *buf = (uint8_t*)msg;
         const size_t frame_len = sizeof(Msg);
 
-        if (PRINT_RECEIVED_BYTES) printf("\n>>> [START FLOW #%d - UART %d] <<<\nRAW:", flow_counter++, (int)selected_uart);
+        if (PRINT_RECEIVED_BYTES && SHOW_UART_COMMS_LOGS) printf("\n>>> [START FLOW #%d - UART %d] <<<\nRAW:", flow_counter++, (int)selected_uart);
 
         while (!message_ok) {
             size_t buffered_len = 0;
             if (uart_get_buffered_data_len(selected_uart, &buffered_len) == ESP_OK) {
                 if (buffered_len > U_BUF_SIZE) {
-                    printf("\n[ALERT: Buffer overflow: %u byte]\n", (unsigned)buffered_len);
+                    if(SHOW_UART_COMMS_LOGS)
+                        printf("\n[ALERT: Buffer overflow: %u byte]\n", (unsigned)buffered_len);
                 }
             }
 
@@ -99,14 +104,14 @@ void task_receive_uart(void *arg) {
             do {
                 r = uart_read_bytes(selected_uart, buf, 1, pdMS_TO_TICKS(1000));
                 if (r > 0) {
-                    if (PRINT_RECEIVED_BYTES) {
+                    if (PRINT_RECEIVED_BYTES && SHOW_UART_COMMS_LOGS) {
                         printf(" %02X", buf[0]); // Stampa il byte ricevuto in esadecimale
                         fflush(stdout);
                     }
                 }
             } while (buf[0] != HEADER_BYTE);
             
-            if (PRINT_RECEIVED_BYTES) printf("|HEADER OK|"); 
+            if (PRINT_RECEIVED_BYTES && SHOW_UART_COMMS_LOGS) printf("|HEADER OK|"); 
 
             //Leggi il resto del messaggio
             bool do_start_over = false;
@@ -115,7 +120,7 @@ void task_receive_uart(void *arg) {
                 int rr = uart_read_bytes(selected_uart, buf + have, frame_len - have, pdMS_TO_TICKS(1000));
                 if (rr > 0) {
                     // Stampa i byte del corpo del messaggio
-                    if (PRINT_RECEIVED_BYTES) {
+                    if (PRINT_RECEIVED_BYTES && SHOW_UART_COMMS_LOGS) {
                         for (int i = 0; i < rr; i++) {
                             printf(" %02X", buf[have + i]);
                         }
@@ -123,7 +128,7 @@ void task_receive_uart(void *arg) {
                     }
                     have += (size_t)rr;
                 } else {
-                    if (PRINT_RECEIVED_BYTES) printf(" [THE THE MESSAGE IS INCOMPLETE]");
+                    if (PRINT_RECEIVED_BYTES && SHOW_UART_COMMS_LOGS) printf(" [THE THE MESSAGE IS INCOMPLETE]");
                     do_start_over = true;
                     break;
                 }
@@ -131,20 +136,20 @@ void task_receive_uart(void *arg) {
 
             
             if (do_start_over) {
-                if (PRINT_RECEIVED_BYTES) printf("\n[I START OVER]\nRAW:");
+                if (PRINT_RECEIVED_BYTES && SHOW_UART_COMMS_LOGS) printf("\n[I START OVER]\nRAW:");
                 continue;
             }
 
             //Check footer
             if (msg->footer == FOOTER_4_BYTES) {
-                if (PRINT_RECEIVED_BYTES) printf(" |OK|");
+                if (PRINT_RECEIVED_BYTES && SHOW_UART_COMMS_LOGS) printf(" |OK|");
                 message_ok = true;
             } else {
-                if (PRINT_RECEIVED_BYTES) printf(" |BAD-FOOTER: %08X|, [I START OVER]", (unsigned int)msg->footer);
+                if (PRINT_RECEIVED_BYTES && SHOW_UART_COMMS_LOGS) printf(" |BAD-FOOTER: %08X|, [I START OVER]", (unsigned int)msg->footer);
             }
         } // fine while(!message_ok)
 
-        if (PRINT_RECEIVED_BYTES) printf("\n[FOOTER OK, MESSAGE OK]\n");
+        if (PRINT_RECEIVED_BYTES && SHOW_UART_COMMS_LOGS) printf("\n[FOOTER OK, MESSAGE OK]\n");
 
 
         //sort the message
@@ -152,23 +157,26 @@ void task_receive_uart(void *arg) {
             wake_task_blink_led_once();
         }
 
-        // printf("blockprint_mutex: %p\n", (void*)block_print_mutex);
-        // xSemaphoreTake(block_print_mutex, portMAX_DELAY);
-        printf("\n================[RECEIVE UART]================\n");
+        if(SHOW_UART_COMMS_LOGS)
+            printf("\n================[RECEIVE UART]================\n");
         const char* role = get_role_name(selected_uart);
         if(msg->target_id == SELF_ID || msg->target_id == -1){ //! in ogni caso se -1 lo prendo io
-            printf("ID: %d | RICEVUTO DA: %s | DESTINAZIONE: ME\n", SELF_ID, role);
-            print_msg_struct(msg);
-            printf("[MSG_DBG] sort_new_msg enqueue msg=%p type=%d sender=%d target=%d\n", (void*)msg, msg->type, msg->sender_id, msg->target_id);
+            if(SHOW_UART_COMMS_LOGS){
+                printf("ID: %d | RICEVUTO DA: %s | DESTINAZIONE: ME\n", SELF_ID, role);
+                print_msg_struct(msg);
+                printf("[MSG_DBG] sort_new_msg enqueue msg=%p type=%d sender=%d target=%d\n", (void*)msg, msg->type, msg->sender_id, msg->target_id);
+            }
             sort_new_msg(msg);
         } else { 
             int uart_opposta = (int)!(bool)selected_uart;
             const char* tpr = get_role_name(uart_opposta);
             bool esiste = !(((int)uart_opposta == (int)UART_NUM_1 && SLAVE_ID == -1) || ((int)uart_opposta == (int)UART_NUM_0 && MASTER_ID == -1));
             
-            printf("ID: %d | RICEVUTO DA: %s | FORWARD TO: %s (PRESENTE: %d)\n", SELF_ID, role, tpr, esiste);
-            print_msg_struct(msg);
-            printf("[MSG_DBG] forwarding msg=%p to uart=%d (opposta=%d)\n", (void*)msg, (int)selected_uart, uart_opposta);
+            if(SHOW_UART_COMMS_LOGS){
+                printf("ID: %d | RICEVUTO DA: %s | FORWARD TO: %s (PRESENTE: %d)\n", SELF_ID, role, tpr, esiste);
+                print_msg_struct(msg);
+                printf("[MSG_DBG] forwarding msg=%p to uart=%d (opposta=%d)\n", (void*)msg, (int)selected_uart, uart_opposta);
+            }
             if(selected_uart == U_WITH_MASTER){
               send_msg_to_slave(msg);
             }else if(selected_uart == U_WITH_SLAVE){
@@ -176,11 +184,11 @@ void task_receive_uart(void *arg) {
             }
         }
 
-        printf("================[__RECEIVE UART]================\n\n");
-        fflush(stdout);
+        if(SHOW_UART_COMMS_LOGS){
+            printf("================[__RECEIVE UART]================\n\n");
+            fflush(stdout);
+        }
 
-        // printf("blockprint_mutex: %p\n", (void*)block_print_mutex);
-        // xSemaphoreGive(block_print_mutex);
     }
 }
 
@@ -200,30 +208,28 @@ void task_send_uart(void *arg){
 
     xQueueReceive(selected_queue, &msg, portMAX_DELAY);
 
-    // uart_write_bytes(selected_uart, (const void*)msg, sizeof(Msg));
     int bytes_sent = uart_write_bytes(selected_uart, (const void*)msg, sizeof(Msg));
     
-    // printf("blockprint_mutex: %p\n", (void*)block_print_mutex);
-    // xSemaphoreTake(block_print_mutex, portMAX_DELAY);
-    printf("\n================[SEND UART]================\n");
-    const char* role = get_role_name(selected_uart);
-    printf("SONO: %d, HO INVIATO INVIO A: %s, IL SEGUENTE MESSAGGIO:\n", SELF_ID, role);
-    print_msg_struct(msg);
-    if (bytes_sent != sizeof(Msg)) {
-        printf("ERRORE: inviati %d byte su %d\n", bytes_sent, sizeof(Msg));
-    } else {
-        printf("Tutti i byte inviati correttamente\n");
+    if(SHOW_UART_COMMS_LOGS){
+        printf("\n================[SEND UART]================\n");
+        const char* role = get_role_name(selected_uart);
+        printf("SONO: %d, HO INVIATO INVIO A: %s, IL SEGUENTE MESSAGGIO:\n", SELF_ID, role);
+        print_msg_struct(msg);
+        if (bytes_sent != sizeof(Msg)) {
+            printf("ERRORE: inviati %d byte su %d\n", bytes_sent, sizeof(Msg));
+        } else {
+            printf("Tutti i byte inviati correttamente\n");
+        }
     }
 
     if(BLINK_ON_SEND_MSG){
       wake_task_blink_led_once();
     }
-    printf("================[__SEND UART]================\n\n");
-    fflush(stdout);
 
-    // printf("blockprint_mutex: %p\n", (void*)block_print_mutex);
-    // xSemaphoreGive(block_print_mutex);
-
+    if(SHOW_UART_COMMS_LOGS){
+        printf("================[__SEND UART]================\n\n");
+        fflush(stdout);
+    }
 
     delete msg; 
   } 
@@ -251,8 +257,14 @@ Msg* allocate_msg(){
 }
 
 void free_msg(Msg* msg){
-    if(msg == nullptr) return;
-    delete msg;
+    if(msg == nullptr){
+        if(SHOW_UART_COMMS_LOGS)
+            printf("WARNING: free_msg(): msg == nullptr\n");
+    }else{
+        if(SHOW_UART_COMMS_LOGS)
+            printf("free_msg(): deleted %p\n", msg);
+        delete msg;
+    }
 }
 
 
