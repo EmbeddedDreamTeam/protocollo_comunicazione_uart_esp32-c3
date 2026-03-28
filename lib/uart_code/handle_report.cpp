@@ -79,10 +79,36 @@ void compute_ids_array(){
     }
 }
 
+// Remove entire subtree rooted at `node` from the dict. This function
+// recursively removes any entry j whose my_master_id == node, then marks
+// j as empty so it won't be reused when rebuilding the chain.
+void remove_subtree_recursive(int node) {
+    for (int j = 0; j < MAX_NODES; ++j) {
+        if (is_dict_ix_empty[j]) continue;
+        if (dict[j].my_master_id == node) {
+            // remove children of j first
+            remove_subtree_recursive(j);
+            // mark j as removed
+            is_dict_ix_empty[j] = true;
+            dict[j].my_master_id = UNKNOWN_ID;
+            dict[j].my_slave_id = UNKNOWN_ID;
+            dict[j].my_id = j;
+        }
+    }
+}
+
 
 void receive_new_report(PayloadReport p){
     dict[p.my_id] = p;
     is_dict_ix_empty[p.my_id] = false;
+
+    // If this node reports it has no slave, remove any subtree that was
+    // previously hanging below it. This ensures that when a parent node
+    // acknowledges it has no child, the root won't reuse stale reports
+    // from the old subtree.
+    if (p.my_slave_id == UNKNOWN_ID) {
+        remove_subtree_recursive(p.my_id);
+    }
 
     compute_ids_array();
     cout << "RECEIVED NEW REPORT:" << endl;
