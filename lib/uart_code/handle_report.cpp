@@ -111,10 +111,12 @@ void receive_new_report(PayloadReport p){
     }
 
     compute_ids_array();
-    cout << "RECEIVED NEW REPORT:" << endl;
-    print_node_info(p);
-    print_ids_array();
-    cout << "___RECEIVED NEW REPORT:" << endl;
+    if(SHOW_UART_COMMS_LOGS){
+        cout << "RECEIVED NEW REPORT:" << endl;
+        print_node_info(p);
+        print_ids_array();
+        cout << "___RECEIVED NEW REPORT:" << endl;
+    }
     ProtocolManager::set_num_servos((uint8_t)get_ids_array_len());
 }
 

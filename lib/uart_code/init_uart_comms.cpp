@@ -27,6 +27,14 @@ void test_task(void* info){
 }
 
 
+void task_loop_print_ids_array(void* info){
+  while (1){
+    print_ids_array();
+    vTaskDelay(pdMS_TO_TICKS(5000));
+  }
+}
+
+
 void init_uart_comms(){
   
   //todo for test
@@ -34,8 +42,12 @@ void init_uart_comms(){
   //!!!ID!!!
   SELF_ID = 0; 
 
+  //*LOGS
+  SHOW_UART_COMMS_LOGS = 1;
+  bool LOOP_PRINT_IDS_ARRAY = 0;
+
   //*TEST
-  bool USE_DEFAULT_IDS = 0; //! NON INIZIALIZZA la logica di handshake
+  bool USE_DEFAULT_IDS = 0; //! == 1 => NON INIZIALIZZA la logica di handshake
   bool TEST_FUN = 0;
   int INIT_PAUSE = 1500;
 
@@ -70,7 +82,8 @@ void init_uart_comms(){
 
   // esp_task_wdt_deinit();
   vTaskDelay(pdMS_TO_TICKS(INIT_PAUSE)); //!ATTENTO - RIMUOVERE O SETTARE A 1500
-  printf("\nSTART START START START START START START START!!!\n");
+  if(SHOW_UART_COMMS_LOGS)
+    printf("\nSTARTED init_uart_comms - STARTED init_uart_comms - STARTED init_uart_comms - STARTED init_uart_comms\n");
 
   //*LED SETUP
   init_led();
@@ -115,20 +128,15 @@ void init_uart_comms(){
     xTaskCreate(task_handle_handshakes, "task_handle_handshakes", 5000, nullptr, 24, nullptr);
     xTaskCreate(task_handle_report, "task_handle_report", 5000, nullptr, 2, nullptr);
   }
-
-
-  // //! REMOVE
-  // if(SELF_ID == ROOT_ID){
-  //   vTaskDelay(pdMS_TO_TICKS(5000));
-  //   printf("TESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTESTTEST\n");
-  //   convert_servo_instructions({0.5f, 1.0f, 1.5f});
-  // }
   
 
-  //todo TEST FUNCTION
-  if(SELF_ID == 0 && TEST_FUN){
-    xTaskCreate(test_task, "test_task", 5000, nullptr, 5, nullptr);
+  if(SELF_ID == ROOT_ID && LOOP_PRINT_IDS_ARRAY){
+    xTaskCreate(task_loop_print_ids_array, "task_loop_print_ids_array", 2000, nullptr, 5, nullptr);
   }
 
+  //todo TEST FUNCTION
+  if(SELF_ID == ROOT_ID && TEST_FUN){
+    xTaskCreate(test_task, "test_task", 5000, nullptr, 5, nullptr);
+  }
 
 }

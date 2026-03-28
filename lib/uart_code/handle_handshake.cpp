@@ -139,7 +139,8 @@ void task_handle_handshakes(void* info){
       send_msg_to_master(nm);
 
       if(msg->sender_id != MASTER_ID){
-        printf(">>> MASTER CHANGED FROM %d TO %d\n", MASTER_ID, msg->sender_id);
+        if(SHOW_UART_COMMS_LOGS){
+          printf(">>> MASTER CHANGED FROM %d TO %d\n", MASTER_ID, msg->sender_id);}
         MASTER_ID = msg->sender_id; 
         send_buffered_messages_to_master(); //! fix: ho invertito questa righa e quella dopo
         send_report_to_root(); //so che non è -1 in quanto ho ricevuto un messaggio da qualcuno; 
@@ -149,9 +150,11 @@ void task_handle_handshakes(void* info){
       last_MtS_ack_sender_id = msg->sender_id;
       received_MtS_ack = true; // FIX: consistency (true instead of 1)
 
-      printf("DOVREI SVEGLIARMI\n");
+      if(SHOW_UART_COMMS_LOGS)
+        printf("DOVREI SVEGLIARMI\n");
       xTaskNotifyGive(handle_task_ping_slave); //ping_slave sends type_MtS
-      printf("MI SONO SVEGLIATO\n");
+      if(SHOW_UART_COMMS_LOGS)
+        printf("MI SONO SVEGLIATO\n");
 
     } else if(msg->payload.payload_handshake.handshake_type == type_StM){  //* lo slave fa ciao rispondigli
       Payload p;
@@ -160,7 +163,8 @@ void task_handle_handshakes(void* info){
       send_msg_to_slave(nm);
 
       if(msg->sender_id != SLAVE_ID){
-        printf(">>> SLAVE CHANGED FROM %d TO %d\n", SLAVE_ID, msg->sender_id);
+        if(SHOW_UART_COMMS_LOGS)
+          printf(">>> SLAVE CHANGED FROM %d TO %d\n", SLAVE_ID, msg->sender_id);
         SLAVE_ID = msg->sender_id; 
         send_buffered_messages_to_slave(); //! fix: ho invertito questa righa e quella dopo
         send_report_to_root();
@@ -170,9 +174,11 @@ void task_handle_handshakes(void* info){
       last_StM_ack_sender_id = msg->sender_id;
       received_StM_ack = true; 
 
-      printf("DOVREI SVEGLIARMI\n");
+      if(SHOW_UART_COMMS_LOGS)
+        printf("DOVREI SVEGLIARMI\n");
       xTaskNotifyGive(handle_task_ping_master); //ping_master sends type_StM
-      printf("MI SONO SVEGLIATO\n");
+      if(SHOW_UART_COMMS_LOGS)
+        printf("MI SONO SVEGLIATO\n");
     }
 
     // msg was allocated with `new` in task_receive_uart/create_msg ->

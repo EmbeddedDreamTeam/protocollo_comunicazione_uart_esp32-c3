@@ -59,9 +59,8 @@ extern int SLAVE_ID;
 
 extern bool BLINK_ON_RECEIVE_MSG; 
 extern bool BLINK_ON_SEND_MSG;
-extern bool BLINK_LOOP_IF_IDS_ARE_KNOWN;
-extern bool BLINK_LOOP_IF_RECEIVED_REPORT;
 extern bool PRINT_RECEIVED_BYTES;
+extern bool SHOW_UART_COMMS_LOGS;
 
 //handles:
 // extern TaskHandle_t h_task_blink_led_once;
@@ -126,6 +125,7 @@ void task_handle_report(void* arg);
 void receive_new_report(PayloadReport p);
 int get_ids_array_len();
 void get_ids_array(int* arr, int len);
+void print_ids_array();
 
 
 //* COMMANDS.CPP
