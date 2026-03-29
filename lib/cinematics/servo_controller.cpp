@@ -44,125 +44,77 @@ typedef enum {
 } MotionPhase;
 
 //TODO trim servo in order to have the middle point aligned correctly
-float decel_distance(float v, float a_max, float j_max);
-float decel_distance_with_acc(float v, float a, float a_max, float j_max);
+float decel_distance(float v, float a_max, float j_max, float v_max);
+float decel_distance_sim(float v, float acc_init, float a_max, float j_max, float v_max);
+float decel_distance_with_acc(float v, float a, float a_max, float j_max, float v_max);
 void servo_timer_init();
-void move_servo_speed_task(void * pvParameters);
+void move_servo_speed_task_state_machine(void * pvParameters);
 void send_movement_ack();
 
 
-/// @brief  Calculates the distance required to decelerate from a given velocity to zero
-/// @param v The initial velocity
-/// @param a_max The acceleration
-/// @param j_max The jerk
-/// @return The distance required to decelerate to zero
-float decel_distance_alg(float v, float a_max, float j_max) {
-    if (v <= 0.0f) return 0.0f;
-    // if the velocity is lower than this, we won't reach max acceleration and the profile is triangular
-    // t=a/j => v=a*t/2
-    float v_full = (a_max * a_max) / (2.0f*j_max);   
-    if (v <= v_full) {
-        // triangular profile
-        // v=a_peak*t' => a_peak=j*t'=> t'=a_peak/j => v=a_peak^2/j => a_peak=sqrt(v*j)
-        // distance = 4/3 * v^(3/2) / sqrt(j)
-        return (powf(v, 1.5f) / sqrtf(j_max))*4.0f/3.0f;
-    }
-    // trapezoidal profile
-    const float t1 = a_max / j_max; // time to reach max acceleration
-    const float t2 = v / a_max - t1; // time at constant acceleration
-    const float v1 = v - (a_max * a_max) / (2.0f * j_max);  // speed at the end of the jerk-up phase
-    const float v2 = v1 - a_max * t2; // speed at the end of the constant acceleration phase
-    const float x1 = v  * t1 - (j_max * t1 * t1 * t1) / 6.0f; // distance covered during the jerk-up phase
-    const float x2 = v1 * t2 - 0.5f * a_max * t2 * t2; // distance covered during the constant acceleration phase
-    const float x3 = v2 * t1 - 0.5f * a_max * t1 * t1 + (j_max * t1 * t1 * t1) / 6.0f; // distance covered during the jerk-down phase
-    return x1 + x2 + x3;
-}
-
-/// @brief Calculates the distance required to decelerate from a given velocity and acceleration to zero
-/// @param v The initial velocity
-/// @param a The initial acceleration
-/// @param a_max The maximum acceleration
-/// @param j_max The maximum jerk
-/// @return The distance required to decelerate to zero
-float decel_distance_with_acc_alg(float v, float a, float a_max, float j_max) {
-    if (a <= 0.0f) return decel_distance_alg(v, a_max, j_max);
-    // time to go from a to 0 with jerk j_max
-    const float t_ramp  = a / j_max;
-    // distance covered during the ramp down of acceleration, until acceleration reaches 0
-    const float d_ramp  = v * t_ramp
-                        + (a   * t_ramp * t_ramp) / 2.0f
-                        - (j_max * t_ramp * t_ramp * t_ramp) / 6.0f;
-    // speed reached when acc = 0  (v + a²/2j)
-    const float v_after = v + (a * a) / (2.0f * j_max);
-    return d_ramp + decel_distance_alg(v_after, a_max, j_max);
-}
 
 /// @brief  Numerically estimate the stopping distance with jerk and acceleration limits.
-///
-/// The original analytic formulas produced edge cases that caused the state
-/// machine to trigger deceleration too early or too late. A short numeric
-/// integration is more robust and easier to reason about. The functions below
-/// keep the same signatures as before so the rest of the code doesn't need to
-/// change.
-static float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max) {
+/// using analytic formulas with quantized time steps led to some big errors. This
+/// function simulates the deceleration with time steps as close as possible to the control loop frequency.
+float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max, float v_max) {
     if (v_init <= 0.0f) return 0.0f;
 
-    // Simulation timestep: trade-off between accuracy and CPU cost. 1..2ms is
-    // sufficient for our kinematics and keeps the loop short.
-    const float dt = 0.002f; // 2 ms
+    const float dt = 0.002f; 
+    // starting speed and acceleration
     float v = v_init;
-    float a = acc_init; // signed acceleration relative to motion direction
+    float a = acc_init;
+    // distance covered so far
     float x = 0.0f;
-
-    // iterate until velocity reaches zero (or a safety iteration limit is hit)
-    const int max_iters = 20000; // safety
+    // capping the number of iterations to avoid infinite loops
+    const int max_iters = 20000;
+    //interrupting the simulation if the velocity is very low
     for (int i = 0; i < max_iters && v > 1e-6f; ++i) {
-        // To stop in the shortest distance we want to reduce acceleration as
-        // fast as allowed (jerk = -j_max) until we reach the maximum braking
-        // acceleration (-a_max). After that we hold a = -a_max. This is a
-        // greedy but effective policy for braking distance estimation.
+        //target acceleration is the maximum allowed acceleration but is negative because we want to decelerate
         const float target_a = -a_max;
+        // if the target acceleration is already reached, we don't need to apply jerk
         float j = 0.0f;
-        if (a > target_a) j = -j_max; // push acceleration down toward -a_max
-
-        // integrate acceleration (clamp to target)
+        if (a > target_a) j = -j_max;
+        // updating the acceleration of the next step and clamping it to the target acceleration
         float a_next = a + j * dt;
         if (a_next < target_a) a_next = target_a;
-
-        // integrate velocity using average acceleration for better accuracy
+        // we use the average of the acceleration because the acceleration changes linearly during the time step
+        // so the average acceleration is the best estimate of the actual acceleration during the time step
+        // because the area under the acceleration curve is the change in velocity,
+        // because the area is a triangle with base dt and height a_next-a, the average acceleration is a + (a_next - a) / 2 = (a + a_next) / 2
         float a_avg = 0.5f * (a + a_next);
         float v_next = v + a_avg * dt;
-
+        
+        // clamping velocity to max
+        if (v_next > v_max) v_next = v_max;
+        // if the speed correctly goes to zero
         if (v_next <= 0.0f) {
-            // stop inside this timestep; compute fractional distance
+            // calculating the exact time to stop with protection against division by 0
             float t_stop = (a_avg == 0.0f) ? dt : (-v / a_avg);
+            // sanitizing t_stop
             if (t_stop < 0.0f) t_stop = dt;
+            // adding the final bit of distance covered until full stop with linear accelerated motion
             x += v * t_stop + 0.5f * a_avg * t_stop * t_stop;
             return x;
         }
-
-        // integrate position using average velocity
+        // updating distance with linear accelerated motion
         x += v * dt + 0.5f * a_avg * dt * dt;
-
-        // advance
         v = v_next;
         a = a_next;
     }
-
     return x;
 }
 
 /// @brief Calculates the distance required to decelerate from a given velocity to zero
-float decel_distance(float v, float a_max, float j_max) {
-    return decel_distance_sim(v, 0.0f, a_max, j_max);
+float decel_distance(float v, float a_max, float j_max, float v_max) {
+    return decel_distance_sim(v, 0.0f, a_max, j_max, v_max);
 }
 
 /// @brief Calculates the distance required to decelerate from a given velocity and acceleration to zero
-float decel_distance_with_acc(float v, float a, float a_max, float j_max) {
+float decel_distance_with_acc(float v, float a, float a_max, float j_max, float v_max) {
     // if we're not currently accelerating (a <= 0) the fallback is the same
     // as decel_distance.
-    if (a <= 0.0f) return decel_distance(v, a_max, j_max);
-    return decel_distance_sim(v, a, a_max, j_max);
+    if (a <= 0.0f) return decel_distance(v, a_max, j_max, v_max);
+    return decel_distance_sim(v, a, a_max, j_max, v_max);
 }
 
 //TODO forse questa funzione era già stata fatta da cesare?
@@ -211,7 +163,7 @@ float rad_from_deg(int32_t degrees){
 /// NOTE this function isn't meant to be used alone, it is used by the move_servo_speed function to set the position of the servo, if you want to set the position directly use move_servo_speed with speed=1.0f
 esp_err_t set_servo_pos(float rad){
     if (rad>=servo_data.min_pos && rad<=servo_data.max_pos){
-        ESP_LOGI("SERVO_API", "Posizione impostata: %.2f rad", rad);
+        ESP_LOGI("SERVO_API", "Posizione impostata: %.4f rad", rad);
         double mid_point=servo_data.sgnl_min_duty+(servo_data.sgnl_max_duty-servo_data.sgnl_min_duty)/2.0;
         //double time= mid_point+rad/servo_data.max_pos*(servo_data.sgnl_max_duty-servo_data.sgnl_min_duty)/2.0; //calculating the signal time
         double time= mid_point+rad/(1.5*M_PI)*(servo_data.sgnl_max_duty-servo_data.sgnl_min_duty); //calculating the signal time
@@ -234,141 +186,10 @@ esp_err_t set_servo_pos(float rad){
 
 }
 
-void move_servo_speed_task(void *pvParameters) {
+ void move_servo_speed_task_state_machine(void *pvParameters) {
     ServoTaskParams cmd;
 
     TickType_t xFrequency  = pdMS_TO_TICKS(20);
-    // Anticipo di 1 tick nominale nel trigger della decelerazione:
-    // a 20 ms e v_max=5.2 rad/s si percorrono ~0.104 rad per tick,
-    // quindi il margine è fondamentale per non superare il target.
-    float dt_nominal = 20.0f / 1000.0f;
-
-    while (1) {
-        if (!xQueueReceive(xServoQueue, &cmd, portMAX_DELAY)) continue;
-
-        bool restart;
-        do {
-            restart = false;
-
-            // initial state
-            float pos    = servo_data.current_pos.load();
-            float target = cmd.target_rad;
-
-            // Clamping parameters 
-            const float j = cmd.jerk > 0.0f ? cmd.jerk : servo_data.max_jerk;
-            const float a = cmd.acc > 0.0f ? cmd.acc : servo_data.max_acc;
-            const float v = cmd.speed > 0.0f ? cmd.speed : servo_data.max_speed;
-
-            // Target reached
-            if (fabsf(target - pos) < 0.005f) break;
-
-            const float dir = (target > pos) ? 1.0f : -1.0f;
-            float vel  = 0.0f;   // modulr of speed, alway ≥ 0
-            float acc  = 0.0f;   // acc with sign [rad/s²]: + accel, − decel
-
-            MotionPhase phase = PH_ACCEL_JUP; //not too sure
-            bool done = false;
-
-            TickType_t xLastWake = xTaskGetTickCount();
-            TickType_t xPrevTick = xLastWake;
-
-            // Main loop: simplified jerk-limited controller.
-            //
-            // Rationale: the previous 7-phase state machine used many analytic
-            // heuristics that proved brittle in corner cases (preemption,
-            // scheduler jitter, and small remaining distances). Here we use a
-            // simple, robust control law: at each timestep either drive the
-            // acceleration toward +a (to speed up) or toward -a (to brake),
-            // using the maximum allowed jerk. The decision is based on a
-            // numeric estimate of the stopping distance (decel_distance*),
-            // plus a small safety margin to account for scheduling/tick
-            // latency.
-            while (!done) {
-                // preemption: a new command arrived, restart main loop
-                ServoTaskParams next;
-                if (xQueueReceive(xServoQueue, &next, 0) == pdTRUE) {
-                    servo_data.current_pos.store(pos);
-                    cmd = next;
-                    restart = true;
-                    break;
-                }
-
-                // actual dt (s)
-                const TickType_t now = xTaskGetTickCount();
-                float dt = (float)(now - xPrevTick) * ((float)portTICK_PERIOD_MS / 1000.0f);
-                if (dt <= 0.0f) dt = dt_nominal; // fallback to nominal if scheduler jitter
-                xPrevTick = now;
-
-                // remaining distance
-                const float rem = fabsf(target - pos);
-
-                // stopping distance (numeric)
-                const float d_stop = (acc > 0.0f)
-                    ? decel_distance_with_acc(vel, acc, a, j)
-                    : decel_distance(vel, a, j);
-                const float d_stop_alg= (acc > 0.0f)
-                    ? decel_distance_with_acc_alg(vel, acc, a, j)
-                    : decel_distance_alg(vel, a, j);
-                ESP_LOGI("Servo", "Stopping distance (numeric): %f, (algorithmic): %f", d_stop, d_stop_alg);
-                // safety margin to account for 1 scheduler tick and a tiny cushion
-                const float safety_margin = vel * ((float)portTICK_PERIOD_MS / 1000.0f) + 0.005f;
-                const float d_trig = d_stop + safety_margin;
-
-                // choose whether to accelerate or decelerate
-                if (rem <= d_trig) {
-                    // brake as fast as possible
-                    float desired_acc = -a; // full braking in motion direction
-                    acc += -j * dt;
-                    if (acc < desired_acc) acc = desired_acc;
-                } else {
-                    // try to reach cruising speed
-                    float desired_acc = a;
-                    acc += j * dt;
-                    if (acc > desired_acc) acc = desired_acc;
-                }
-
-                // integrate velocity and clamp
-                vel += acc * dt;
-                if (vel < 0.0f) vel = 0.0f;
-                if (vel > v) vel = v;
-
-                // predict step and guard overshoot
-                float next_pos = pos + dir * vel * dt;
-                if ((dir > 0.0f && next_pos >= target) || (dir < 0.0f && next_pos <= target)) {
-                    pos = target;
-                    vel = 0.0f;
-                    acc = 0.0f;
-                    done = true;
-                } else {
-                    pos = next_pos;
-                }
-
-                // update servo state and command hardware
-                servo_data.current_speed.store(vel);
-                servo_data.current_acc.store(acc);
-                servo_data.current_pos.store(pos);
-                set_servo_pos(pos);
-
-                if (!done) vTaskDelayUntil(&xLastWake, xFrequency);
-            }
-
-        } while (restart);
-
-        // updating final servo state with speed and acc = 0
-        servo_data.current_speed.store(0.0f);
-        servo_data.current_acc.store(0.0f);
-        send_movement_ack();
-    }
-}
-
-void move_servo_speed_task_state_machine(void *pvParameters) {
-    ServoTaskParams cmd;
-
-    TickType_t xFrequency  = pdMS_TO_TICKS(20);
-    // Anticipo di 1 tick nominale nel trigger della decelerazione:
-    // a 20 ms e v_max=5.2 rad/s si percorrono ~0.104 rad per tick,
-    // quindi il margine è fondamentale per non superare il target.
-    float dt_nominal = 20.0f / 1000.0f;
 
     while (1) {
         if (!xQueueReceive(xServoQueue, &cmd, portMAX_DELAY)) continue;
@@ -399,17 +220,7 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
             TickType_t xLastWake = xTaskGetTickCount();
             TickType_t xPrevTick = xLastWake;
 
-            // Main loop: simplified jerk-limited controller.
-            //
-            // Rationale: the previous 7-phase state machine used many analytic
-            // heuristics that proved brittle in corner cases (preemption,
-            // scheduler jitter, and small remaining distances). Here we use a
-            // simple, robust control law: at each timestep either drive the
-            // acceleration toward +a (to speed up) or toward -a (to brake),
-            // using the maximum allowed jerk. The decision is based on a
-            // numeric estimate of the stopping distance (decel_distance*),
-            // plus a small safety margin to account for scheduling/tick
-            // latency.
+            // main loop with state machine for motion profiling
             while (!done) {
                  // if there is a new command in the queue, preempt the current motion and start the new one immediately
                 ServoTaskParams next;
@@ -431,8 +242,8 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
 
                 // distance necessary to stop
                 const float d_stop = (acc > 0.0f)
-                    ? decel_distance_with_acc(vel, acc, a, j)
-                    : decel_distance(vel, a, j);
+                    ? decel_distance_with_acc(vel, acc, a, j, cmd.speed)
+                    : decel_distance(vel, a, j, cmd.speed);
 
                 // distance necessary to stop + delay to start to decelerate ?
                 const float d_trig = d_stop;
@@ -451,7 +262,7 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
 
                     if (acc >= a) { //capping acceleration to a
                         acc = a;
-                        // speed after a jerk-up phase
+                        // speed after ajerk-up phase
                         // if the speed after the jerk-up phase is higher than the target speed, we have to go directly to jerk-down (should not happen)
                         // otherwise we can enter the constant acceleration phase
                         float vp = vel + (a * a) / (2.0f * j);
@@ -560,7 +371,6 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
                     acc = 0.0f;
                     done = true;
                 }
-
                 // updating servo state
                 servo_data.current_speed.store(vel);
                 servo_data.current_acc.store(acc);
@@ -570,112 +380,13 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
                 if (!done) vTaskDelayUntil(&xLastWake, xFrequency);
             }
         } while (restart);
-
+        set_servo_pos(cmd.target_rad); // ensure we end up in the exact target position (corrections for numerical errors)
         // updating final servo state with speed and acc = 0
         servo_data.current_speed.store(0.0f);
         servo_data.current_acc.store(0.0f);
         send_movement_ack();
     }
 }
-
-//TODO implement deceleration
-// void move_servo_speed_task(void * pvParameters) {
-//     ServoTaskParams cmd;
-    
-//     TickType_t xLastWakeTime;
-//     TickType_t xPreviousFrameTick;
-//     const TickType_t xFrequency = pdMS_TO_TICKS(20);
-
-//     while (1) {
-//         if (xQueueReceive(xServoQueue, &cmd, portMAX_DELAY)) {
-//             float current_rad = servo_data.current_pos.load();
-//             float start_rad = current_rad;
-//             float mid_point;
-//             int dir;
-//             int target_speed_rads=0;
-//             if (cmd.target_rad > current_rad){
-//                 dir = 1;
-//                 mid_point = current_rad + (cmd.target_rad - current_rad) / 2.0f;
-//             }
-//             else{
-//                 dir = -1;
-//                 mid_point = cmd.target_rad + (current_rad - cmd.target_rad) / 2.0f;
-//             }
-//             // initializing time: count of ticks since vTaskStartScheduler was called
-//             //number of ticks of the previus command
-//             xLastWakeTime = xTaskGetTickCount();
-//             //saving the tick count at the start of the movement frame, to calculate the effective time elapsed in each iteration and use it for the speed control, ensuring a more precise control over the servo movement
-//             xPreviousFrameTick = xLastWakeTime;
-
-//             while (fabs(current_rad - cmd.target_rad) > 0.005f) {
-//                 // new commands check
-//                 ServoTaskParams next_cmd;
-//                 if (xQueueReceive(xServoQueue, &next_cmd, 0) == pdTRUE) {
-//                     cmd = next_cmd;
-//                 }
-
-//                 // calculating real dt (effective time elapsed)
-//                 TickType_t xCurrentTick = xTaskGetTickCount();
-//                 // calculating real time elapsed in seconds
-//                 float dt = (float)(xCurrentTick - xPreviousFrameTick) * portTICK_PERIOD_MS / 1000.0f;
-//                 //now the previous tick count is updated to the current one
-//                 xPreviousFrameTick = xCurrentTick;
-
-//                 // step based on real time elapsed
-//                 //float step = cmd.speed * dt; 
-//                 float current_speed = servo_data.current_speed.load();
-//                 float current_acc = servo_data.current_acc.load();
-//                 float step = current_speed * dt; 
-//                 if(dir*current_rad<dir*mid_point){
-//                     if (current_speed<cmd.speed) {
-//                         // if we are below the target speed, we need to accelerate
-//                         // this speed will be used in the next iteration to calculate the step
-//                         current_speed += current_acc * dt;
-//                         if (current_speed > cmd.speed) current_speed = cmd.speed; // limit speed
-//                         //need to implement negative jerk
-//                     }
-//                     else{
-//                         target_speed_rads = current_rad-start_rad;
-//                     }
-//                     if(current_acc < cmd.acc){
-//                         // if we are below the target acceleration, we need to increase jerk
-//                         current_acc += cmd.jerk * dt;
-//                         if (current_acc > cmd.acc) current_acc = cmd.acc; // limit acceleration
-//                     }
-//                 }
-//                 else if (current_rad> mid_point+target_speed_rads){
-//                     //here we need to decelerate
-//                     current_acc += cmd.jerk * dt;
-//                     if (current_acc > cmd.acc) current_acc = cmd.acc; // limit acceleration
-//                     current_speed -= current_acc * dt;
-//                     if (current_speed < 0.0f) current_speed = 0.0f; // limit speed
-//                 }
-//                 else{
-//                     servo_data.current_acc.store(0.0f);
-//                     current_acc = 0.0f;
-//                 }
-                
-//                     if (current_rad < cmd.target_rad) {
-//                         current_rad += step;
-//                         if (current_rad > cmd.target_rad) current_rad = cmd.target_rad;
-//                     } else {
-//                         current_rad -= step;
-//                         if (current_rad < cmd.target_rad) current_rad = cmd.target_rad;
-//                     }
-                
-//                 servo_data.current_speed.store(current_speed);
-//                 servo_data.current_acc.store(current_acc);
-
-//                 set_servo_pos(current_rad);
-//                 // periodically waking this function at a xFrequency rate
-//                 vTaskDelayUntil(&xLastWakeTime, xFrequency);
-//             }
-//             servo_data.current_speed.store(0.0f); // when the target position is reached, the speed is set to 0
-//             servo_data.current_acc.store(0.0f); // when the target position is reached, the acceleration is set to 0
-//             send_movement_ack();
-//         }
-//     }
-// }
 
 
 esp_err_t move_servo_speed(float rad, float speed, float acc, float jerk){
