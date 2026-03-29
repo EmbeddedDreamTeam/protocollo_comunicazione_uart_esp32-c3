@@ -50,6 +50,53 @@ void servo_timer_init();
 void move_servo_speed_task(void * pvParameters);
 void send_movement_ack();
 
+
+/// @brief  Calculates the distance required to decelerate from a given velocity to zero
+/// @param v The initial velocity
+/// @param a_max The acceleration
+/// @param j_max The jerk
+/// @return The distance required to decelerate to zero
+float decel_distance_alg(float v, float a_max, float j_max) {
+    if (v <= 0.0f) return 0.0f;
+    // if the velocity is lower than this, we won't reach max acceleration and the profile is triangular
+    // t=a/j => v=a*t/2
+    float v_full = (a_max * a_max) / (2.0f*j_max);   
+    if (v <= v_full) {
+        // triangular profile
+        // v=a_peak*t' => a_peak=j*t'=> t'=a_peak/j => v=a_peak^2/j => a_peak=sqrt(v*j)
+        // distance = 4/3 * v^(3/2) / sqrt(j)
+        return (powf(v, 1.5f) / sqrtf(j_max))*4.0f/3.0f;
+    }
+    // trapezoidal profile
+    const float t1 = a_max / j_max; // time to reach max acceleration
+    const float t2 = v / a_max - t1; // time at constant acceleration
+    const float v1 = v - (a_max * a_max) / (2.0f * j_max);  // speed at the end of the jerk-up phase
+    const float v2 = v1 - a_max * t2; // speed at the end of the constant acceleration phase
+    const float x1 = v  * t1 - (j_max * t1 * t1 * t1) / 6.0f; // distance covered during the jerk-up phase
+    const float x2 = v1 * t2 - 0.5f * a_max * t2 * t2; // distance covered during the constant acceleration phase
+    const float x3 = v2 * t1 - 0.5f * a_max * t1 * t1 + (j_max * t1 * t1 * t1) / 6.0f; // distance covered during the jerk-down phase
+    return x1 + x2 + x3;
+}
+
+/// @brief Calculates the distance required to decelerate from a given velocity and acceleration to zero
+/// @param v The initial velocity
+/// @param a The initial acceleration
+/// @param a_max The maximum acceleration
+/// @param j_max The maximum jerk
+/// @return The distance required to decelerate to zero
+float decel_distance_with_acc_alg(float v, float a, float a_max, float j_max) {
+    if (a <= 0.0f) return decel_distance_alg(v, a_max, j_max);
+    // time to go from a to 0 with jerk j_max
+    const float t_ramp  = a / j_max;
+    // distance covered during the ramp down of acceleration, until acceleration reaches 0
+    const float d_ramp  = v * t_ramp
+                        + (a   * t_ramp * t_ramp) / 2.0f
+                        - (j_max * t_ramp * t_ramp * t_ramp) / 6.0f;
+    // speed reached when acc = 0  (v + a²/2j)
+    const float v_after = v + (a * a) / (2.0f * j_max);
+    return d_ramp + decel_distance_alg(v_after, a_max, j_max);
+}
+
 /// @brief  Numerically estimate the stopping distance with jerk and acceleration limits.
 ///
 /// The original analytic formulas produced edge cases that caused the state
@@ -259,7 +306,10 @@ void move_servo_speed_task(void *pvParameters) {
                 const float d_stop = (acc > 0.0f)
                     ? decel_distance_with_acc(vel, acc, a, j)
                     : decel_distance(vel, a, j);
-
+                const float d_stop_alg= (acc > 0.0f)
+                    ? decel_distance_with_acc_alg(vel, acc, a, j)
+                    : decel_distance_alg(vel, a, j);
+                ESP_LOGI("Servo", "Stopping distance (numeric): %f, (algorithmic): %f", d_stop, d_stop_alg);
                 // safety margin to account for 1 scheduler tick and a tiny cushion
                 const float safety_margin = vel * ((float)portTICK_PERIOD_MS / 1000.0f) + 0.005f;
                 const float d_trig = d_stop + safety_margin;
@@ -302,6 +352,223 @@ void move_servo_speed_task(void *pvParameters) {
                 if (!done) vTaskDelayUntil(&xLastWake, xFrequency);
             }
 
+        } while (restart);
+
+        // updating final servo state with speed and acc = 0
+        servo_data.current_speed.store(0.0f);
+        servo_data.current_acc.store(0.0f);
+        send_movement_ack();
+    }
+}
+
+void move_servo_speed_task_state_machine(void *pvParameters) {
+    ServoTaskParams cmd;
+
+    TickType_t xFrequency  = pdMS_TO_TICKS(20);
+    // Anticipo di 1 tick nominale nel trigger della decelerazione:
+    // a 20 ms e v_max=5.2 rad/s si percorrono ~0.104 rad per tick,
+    // quindi il margine è fondamentale per non superare il target.
+    float dt_nominal = 20.0f / 1000.0f;
+
+    while (1) {
+        if (!xQueueReceive(xServoQueue, &cmd, portMAX_DELAY)) continue;
+
+        bool restart;
+        do {
+            restart = false;
+
+            // initial state
+            float pos    = servo_data.current_pos.load();
+            float target = cmd.target_rad;
+
+            // Clamping parameters 
+            const float j = cmd.jerk > 0.0f ? cmd.jerk : servo_data.max_jerk;
+            const float a = cmd.acc > 0.0f ? cmd.acc : servo_data.max_acc;
+            const float v = cmd.speed > 0.0f ? cmd.speed : servo_data.max_speed;
+
+            // Target reached
+            if (fabsf(target - pos) < 0.005f) break;
+
+            const float dir = (target > pos) ? 1.0f : -1.0f;
+            float vel  = 0.0f;   // modulr of speed, alway ≥ 0
+            float acc  = 0.0f;   // acc with sign [rad/s²]: + accel, − decel
+
+            MotionPhase phase = PH_ACCEL_JUP; //not too sure
+            bool done = false;
+
+            TickType_t xLastWake = xTaskGetTickCount();
+            TickType_t xPrevTick = xLastWake;
+
+            // Main loop: simplified jerk-limited controller.
+            //
+            // Rationale: the previous 7-phase state machine used many analytic
+            // heuristics that proved brittle in corner cases (preemption,
+            // scheduler jitter, and small remaining distances). Here we use a
+            // simple, robust control law: at each timestep either drive the
+            // acceleration toward +a (to speed up) or toward -a (to brake),
+            // using the maximum allowed jerk. The decision is based on a
+            // numeric estimate of the stopping distance (decel_distance*),
+            // plus a small safety margin to account for scheduling/tick
+            // latency.
+            while (!done) {
+                 // if there is a new command in the queue, preempt the current motion and start the new one immediately
+                ServoTaskParams next;
+                if (xQueueReceive(xServoQueue, &next, 0) == pdTRUE) {
+                    servo_data.current_pos.store(pos);
+                    cmd = next;
+                    restart = true;
+                    break;
+                    // we have to preserve the previous state
+                }
+
+                // calculating actual dt
+                const TickType_t now = xTaskGetTickCount();
+                float dt = (float)(now - xPrevTick) * (portTICK_PERIOD_MS / 1000.0f);
+                xPrevTick = now;
+
+                // remaining distance
+                const float rem = fabsf(target - pos);
+
+                // distance necessary to stop
+                const float d_stop = (acc > 0.0f)
+                    ? decel_distance_with_acc(vel, acc, a, j)
+                    : decel_distance(vel, a, j);
+
+                // distance necessary to stop + delay to start to decelerate ?
+                const float d_trig = d_stop;
+
+                switch (phase) {
+
+                case PH_ACCEL_JUP:
+                    //this means that we have just enough space to stop
+                    if (rem <= d_trig) { 
+                        ESP_LOGI("Servo", "Switching to decel_jup phase (remaining distance: %f, trigger distance: %f)", rem, d_trig);
+                        phase = PH_DECEL_JUP;
+                        break; 
+                    }
+
+                    acc += j * dt; //updating acceleration
+
+                    if (acc >= a) { //capping acceleration to a
+                        acc = a;
+                        // speed after a jerk-up phase
+                        // if the speed after the jerk-up phase is higher than the target speed, we have to go directly to jerk-down (should not happen)
+                        // otherwise we can enter the constant acceleration phase
+                        float vp = vel + (a * a) / (2.0f * j);
+                        if (vp >= v) {
+                            ESP_LOGI("Servo", "Switching to ACCEL_JDN phase (vp: %f, v: %f)", vp, v);
+                            phase = PH_ACCEL_JDN;
+                        } else {
+                            ESP_LOGI("Servo", "Switching to ACCEL_CONST phase (vp: %f, v: %f)", vp, v);
+                            phase = PH_ACCEL_CONST;
+                        }
+                    } else {
+                        // checking for overshoot
+                        float vp = vel + (acc * acc) / (2.0f * j);
+                        if (vp >= v) {
+                            ESP_LOGI("Servo", "Switching to ACCEL_JDN phase (vp: %f, v: %f)", vp, v);
+                            phase = PH_ACCEL_JDN;
+                        }
+                    }
+                    break;
+
+                case PH_ACCEL_CONST:
+                    // if we have just enough space to stop, we have to start decelerating
+                    if (rem <= d_trig) { 
+                        ESP_LOGI("Servo", "Switching to DECEL_JUP phase (remaining distance: %f, trigger distance: %f)", rem, d_trig);
+                        phase = PH_DECEL_JUP;
+                        break;
+                    }
+                    // if with the deceleration the speed would be too high, we have to start reducing acceleration
+                    if (vel + (a * a) / (2.0f * j) >= v) {
+                        ESP_LOGI("Servo", "Switching to ACCEL_JDN phase (vel: %f, v: %f)", vel + (a * a) / (2.0f * j), v);
+                        phase = PH_ACCEL_JDN;
+                    }
+                    break;
+                 case PH_ACCEL_JDN:
+                    // if we have just enough space to stop, we have to start decelerating
+                    if (rem <= d_trig) { 
+                        ESP_LOGI("Servo", "Switching to DECEL_JUP phase (remaining distance: %f, trigger distance: %f)", rem, d_trig);
+                        phase = PH_DECEL_JUP; 
+                        break; 
+                    }
+                    acc -= j * dt;
+                    if (acc <= 0.0f) {
+                        acc = 0.0f;
+                        vel = v;      // snap at the precise speed
+                        ESP_LOGI("Servo", "Switching to CRUISE phase (acc: %f, vel: %f)", acc, vel);
+                        phase = PH_CRUISE; //linear motion phase
+                    }
+                    break;
+
+                case PH_CRUISE:
+                    // if we have just enough space to stop, we have to start decelerating
+                    if (rem <= d_trig) {
+                        ESP_LOGI("Servo", "Switching to DECEL_JUP phase (remaining distance: %f, trigger distance: %f)", rem, d_trig);
+                        phase = PH_DECEL_JUP;
+                    }
+                    break;
+
+                
+
+                case PH_DECEL_JUP:
+                    // starting deceleration ramp: acc goes from 0 to -a
+                    acc -= j * dt;
+                    if (acc < -a) acc = -a;
+
+                    // in this case we have just enough space to stop, so we can skip the constant deceleration phase and go directly to jerk-down
+                    if (vel <= (acc * acc) / (2.0f * j)) {
+                        ESP_LOGI("Servo", "Switching to DECEL_JDN phase (vel: %f, acc: %f, j: %f)", vel, acc, j);
+                        phase = PH_DECEL_JDN;       // triangular profile
+                    } else if (acc <= -a) {
+                        ESP_LOGI("Servo", "Switching to DECEL_CONST phase (acc: %f, a: %f)", acc, a);
+                        phase = PH_DECEL_CONST;     // trapezoidal profile
+                    }
+                    break;
+
+                case PH_DECEL_CONST:
+                    // if we have just enough space to stop, we have to start reducing deceleration
+                    if (vel <= (a * a) / (2.0f * j)) {
+                        ESP_LOGI("Servo", "Switching to DECEL_JDN phase (vel: %f, a: %f, j: %f)", vel, a, j);
+                        phase = PH_DECEL_JDN;
+                    }
+                    break;
+
+                case PH_DECEL_JDN:
+                    // deceleration ramp: acc goes from -a to 0
+                    acc += j * dt;
+                    if (acc >= 0.0f) {
+                        acc = 0.0f;
+                        vel = 0.0f;
+                        ESP_LOGI("Servo", "Switching to DONE phase (acc: %f, vel: %f)", acc, vel);
+                        done = true;    // now we can stop, we have reached the target
+                    }
+                    break;
+                }
+
+                // calculating new speed and position with protections
+                vel += acc * dt;
+                if (vel < 0.0f) vel = 0.0f;
+                if (vel > v)    vel = v;
+
+                pos += dir * vel * dt;
+
+                // correcting overshoot
+                if ((dir > 0.0f && pos >= target) || (dir < 0.0f && pos <= target)) {
+                    pos = target;
+                    vel = 0.0f;
+                    acc = 0.0f;
+                    done = true;
+                }
+
+                // updating servo state
+                servo_data.current_speed.store(vel);
+                servo_data.current_acc.store(acc);
+                servo_data.current_pos.store(pos);
+                set_servo_pos(pos);
+
+                if (!done) vTaskDelayUntil(&xLastWake, xFrequency);
+            }
         } while (restart);
 
         // updating final servo state with speed and acc = 0
@@ -413,6 +680,7 @@ void move_servo_speed_task(void *pvParameters) {
 
 esp_err_t move_servo_speed(float rad, float speed, float acc, float jerk){
     ESP_LOGI("SERVO_API", "move_servo_speed called with rad=%.2f, speed=%.2f, acc=%.2f, jerk=%.2f", rad, speed, acc, jerk);
+    ESP_LOGI("SERVO_API", "Current servo state: pos=%.2f, speed=%.2f, acc=%.2f", servo_data.current_pos.load(), servo_data.current_speed.load(), servo_data.current_acc.load());
     if (xServoQueue == NULL) {
         ESP_LOGE("SERVO_API", "Errore: Coda non inizializzata!");
         return ESP_ERR_INVALID_STATE;
@@ -449,7 +717,7 @@ void servo_init(){
 
     // creating the persistent task
     xTaskCreate(
-        move_servo_speed_task,
+        move_servo_speed_task_state_machine,
         "ServoMotorTask",
         3072, // Stack size
         NULL, //parameters
