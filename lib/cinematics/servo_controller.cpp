@@ -6,14 +6,16 @@
 TaskHandle_t xTaskHandle = NULL;
 QueueHandle_t xServoQueue = NULL; //queue handler
 
+const float trim = 0.07f*M_PI;
+
 // single definition of servo_data (shared across translation units)
 ServoData servo_data = {
     .duty_res = 0,                // will be set by servo_timer_init()
     .gpio = 5,
     .sgnl_min_duty = 500,
     .sgnl_max_duty = 2500,
-    .min_pos = (float)(-30.5/36.0*M_PI),
-    .max_pos = (float)( 30.5/36.0*M_PI),
+    .min_pos = (float)(-30.5/36.0*M_PI) + trim,
+    .max_pos = (float)( 30.5/36.0*M_PI) - trim,
     .current_pos = std::atomic<float>(0.0f),
     .current_speed = std::atomic<float>(0.0f),
     .current_acc = std::atomic<float>(0.0f),
@@ -42,6 +44,7 @@ typedef enum {
     PH_DECEL_CONST,
     PH_DECEL_JDN,
 } MotionPhase;
+
 
 //TODO trim servo in order to have the middle point aligned correctly
 float decel_distance(float v, float a_max, float j_max, float v_max);
@@ -166,7 +169,7 @@ esp_err_t set_servo_pos(float rad){
         ESP_LOGI("SERVO_API", "Posizione impostata: %.4f rad", rad);
         double mid_point=servo_data.sgnl_min_duty+(servo_data.sgnl_max_duty-servo_data.sgnl_min_duty)/2.0;
         //double time= mid_point+rad/servo_data.max_pos*(servo_data.sgnl_max_duty-servo_data.sgnl_min_duty)/2.0; //calculating the signal time
-        double time= mid_point+rad/(1.5*M_PI)*(servo_data.sgnl_max_duty-servo_data.sgnl_min_duty); //calculating the signal time
+        double time= mid_point+(rad+trim)/(1.5*M_PI)*(servo_data.sgnl_max_duty-servo_data.sgnl_min_duty); //calculating the signal time
         uint32_t max_duty = (1 << servo_data.duty_res);
         uint32_t duty= (uint32_t)(time/20000.0*max_duty); //fraction of the period in micro-seconds
         ledc_set_duty(
@@ -435,6 +438,8 @@ void servo_init(){
         1,
         &xTaskHandle
     );
+    //random delay to avoid all the servos to start at the same time and cause a big current absorption peak that could reset the board
+    vTaskDelay(pdMS_TO_TICKS(rand()%3000)); 
     
     move_servo_speed(0.0f, 1.0f, servo_data.max_acc, servo_data.max_jerk); //moving the servo to the initial position with max speed, acc and jerk to ensure a fast initialization
     vTaskDelay(pdMS_TO_TICKS(1000));
