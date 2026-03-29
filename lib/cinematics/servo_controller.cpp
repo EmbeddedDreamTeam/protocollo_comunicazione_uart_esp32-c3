@@ -390,8 +390,8 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
             if (fabsf(target - pos) < 0.005f) break;
 
             const float dir = (target > pos) ? 1.0f : -1.0f;
-            float vel  = 0.0f;   // modulr of speed, alway ≥ 0
-            float acc  = 0.0f;   // acc with sign [rad/s²]: + accel, − decel
+            float vel  = servo_data.current_speed.load();   // modulr of speed, alway ≥ 0
+            float acc  = servo_data.current_acc.load();   // acc with sign [rad/s²]: + accel, − decel
 
             MotionPhase phase = PH_ACCEL_JUP; //not too sure
             bool done = false;
@@ -442,7 +442,7 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
                 case PH_ACCEL_JUP:
                     //this means that we have just enough space to stop
                     if (rem <= d_trig) { 
-                        ESP_LOGI("Servo", "Switching to decel_jup phase (remaining distance: %f, trigger distance: %f)", rem, d_trig);
+                        ESP_LOGI("Servo", "Switching to decel_jup phase (remaining distance: %f, trigger distance: %f, acc: %f, vel: %f)", rem, d_trig, acc, vel);
                         phase = PH_DECEL_JUP;
                         break; 
                     }
@@ -456,17 +456,17 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
                         // otherwise we can enter the constant acceleration phase
                         float vp = vel + (a * a) / (2.0f * j);
                         if (vp >= v) {
-                            ESP_LOGI("Servo", "Switching to ACCEL_JDN phase (vp: %f, v: %f)", vp, v);
+                            ESP_LOGI("Servo", "Switching to ACCEL_JDN phase (vp: %f, v: %f, acc: %f, vel: %f)", vp, v, acc, vel);
                             phase = PH_ACCEL_JDN;
                         } else {
-                            ESP_LOGI("Servo", "Switching to ACCEL_CONST phase (vp: %f, v: %f)", vp, v);
+                            ESP_LOGI("Servo", "Switching to ACCEL_CONST phase (vp: %f, v: %f, acc: %f, vel: %f)", vp, v, acc, vel);
                             phase = PH_ACCEL_CONST;
                         }
                     } else {
                         // checking for overshoot
                         float vp = vel + (acc * acc) / (2.0f * j);
                         if (vp >= v) {
-                            ESP_LOGI("Servo", "Switching to ACCEL_JDN phase (vp: %f, v: %f)", vp, v);
+                            ESP_LOGI("Servo", "Switching to ACCEL_JDN phase (vp: %f, v: %f, acc: %f, vel: %f)", vp, v, acc, vel);
                             phase = PH_ACCEL_JDN;
                         }
                     }
@@ -475,20 +475,20 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
                 case PH_ACCEL_CONST:
                     // if we have just enough space to stop, we have to start decelerating
                     if (rem <= d_trig) { 
-                        ESP_LOGI("Servo", "Switching to DECEL_JUP phase (remaining distance: %f, trigger distance: %f)", rem, d_trig);
+                        ESP_LOGI("Servo", "Switching to DECEL_JUP phase (remaining distance: %f, trigger distance: %f, acc: %f, vel: %f)", rem, d_trig, acc, vel);
                         phase = PH_DECEL_JUP;
                         break;
                     }
                     // if with the deceleration the speed would be too high, we have to start reducing acceleration
                     if (vel + (a * a) / (2.0f * j) >= v) {
-                        ESP_LOGI("Servo", "Switching to ACCEL_JDN phase (vel: %f, v: %f)", vel + (a * a) / (2.0f * j), v);
+                        ESP_LOGI("Servo", "Switching to ACCEL_JDN phase (vel: %f, v: %f, acc: %f, vel: %f)", vel + (a * a) / (2.0f * j), v, acc, vel);
                         phase = PH_ACCEL_JDN;
                     }
                     break;
                  case PH_ACCEL_JDN:
                     // if we have just enough space to stop, we have to start decelerating
                     if (rem <= d_trig) { 
-                        ESP_LOGI("Servo", "Switching to DECEL_JUP phase (remaining distance: %f, trigger distance: %f)", rem, d_trig);
+                        ESP_LOGI("Servo", "Switching to DECEL_JUP phase (remaining distance: %f, trigger distance: %f, acc: %f, vel: %f)", rem, d_trig, acc, vel);
                         phase = PH_DECEL_JUP; 
                         break; 
                     }
@@ -504,7 +504,7 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
                 case PH_CRUISE:
                     // if we have just enough space to stop, we have to start decelerating
                     if (rem <= d_trig) {
-                        ESP_LOGI("Servo", "Switching to DECEL_JUP phase (remaining distance: %f, trigger distance: %f)", rem, d_trig);
+                        ESP_LOGI("Servo", "Switching to DECEL_JUP phase (remaining distance: %f, trigger distance: %f, acc: %f, vel: %f)", rem, d_trig, acc, vel);
                         phase = PH_DECEL_JUP;
                     }
                     break;
@@ -521,7 +521,7 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
                         ESP_LOGI("Servo", "Switching to DECEL_JDN phase (vel: %f, acc: %f, j: %f)", vel, acc, j);
                         phase = PH_DECEL_JDN;       // triangular profile
                     } else if (acc <= -a) {
-                        ESP_LOGI("Servo", "Switching to DECEL_CONST phase (acc: %f, a: %f)", acc, a);
+                        ESP_LOGI("Servo", "Switching to DECEL_CONST phase (acc: %f, a: %f, vel: %f)", acc, a, vel);
                         phase = PH_DECEL_CONST;     // trapezoidal profile
                     }
                     break;
@@ -529,7 +529,7 @@ void move_servo_speed_task_state_machine(void *pvParameters) {
                 case PH_DECEL_CONST:
                     // if we have just enough space to stop, we have to start reducing deceleration
                     if (vel <= (a * a) / (2.0f * j)) {
-                        ESP_LOGI("Servo", "Switching to DECEL_JDN phase (vel: %f, a: %f, j: %f)", vel, a, j);
+                        ESP_LOGI("Servo", "Switching to DECEL_JDN phase (vel: %f, a: %f, j: %f, acc: %f)", vel, a, j, acc);
                         phase = PH_DECEL_JDN;
                     }
                     break;
