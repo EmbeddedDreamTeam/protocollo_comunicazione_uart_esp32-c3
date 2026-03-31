@@ -1,0 +1,47 @@
+#ifndef SERVO_TYPES_H
+#define SERVO_TYPES_H
+
+#include <stdio.h>
+#include <atomic>
+#include <stdint.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "freertos/queue.h"
+#include <cmath>
+
+#define SERVO_QUEUE_LEN 5
+
+typedef struct {
+    float target_rad;
+    float speed;
+    float acc;
+    float jerk;
+} ServoTaskParams;
+
+typedef struct {
+    uint32_t duty_res;
+    int8_t gpio;
+    uint32_t sgnl_min_duty;
+    uint32_t sgnl_max_duty;
+    // these values ranges from -5/6*PI rads to +5/6*PI corresponding to -150 degrees to +150 degrees,
+    // with a total range of motion of 300 degrees, not ~309 in order to have some margin
+    // because if the potentiometer barely exceeds this value, the servo will execute a +360 degrees rotation
+    // in order to go back to the setted position
+    float min_pos;
+    float max_pos;
+    std::atomic<float> current_pos; //this ensure thread safety
+    std::atomic<float> current_speed;
+    std::atomic<float> current_acc;
+    float max_speed;
+    float max_acc;
+    float max_jerk;
+} ServoData;
+//modern C++ style type definition for declaring global variables in the header file without violating the one definition rule, and ensuring type safety
+
+inline constexpr float trim= 0.07f*M_PI;
+extern ServoData servo_data;
+
+extern QueueHandle_t xServoQueue; //queue handler
+extern TaskHandle_t xTaskHandle; //task handler
+
+#endif

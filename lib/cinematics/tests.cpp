@@ -1,5 +1,6 @@
 #include "servo_controller.h"
 #include "esp_task_wdt.h"
+#include "esp_log.h"
 void test_sweep() {
     ESP_LOGI("TEST", "Inizio Sweep: da MIN a MAX...");
     // Muove il servo da MIN a MAX a velocità moderata (1.5 rad/s)

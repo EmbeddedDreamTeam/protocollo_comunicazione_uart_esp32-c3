@@ -2,125 +2,11 @@
 #include "msg_structs.h"
 #include "utils_uart_comms.h"
 #include <freertos/queue.h>
-
-TaskHandle_t xTaskHandle = NULL;
-QueueHandle_t xServoQueue = NULL; //queue handler
-
-const float trim = 0.07f*M_PI;
-
-// single definition of servo_data (shared across translation units)
-ServoData servo_data = {
-    .duty_res = 0,                // will be set by servo_timer_init()
-    .gpio = 5,
-    .sgnl_min_duty = 500,
-    .sgnl_max_duty = 2500,
-    .min_pos = (float)(-30.5/36.0*M_PI) + trim,
-    .max_pos = (float)( 30.5/36.0*M_PI) - trim,
-    .current_pos = std::atomic<float>(0.0f),
-    .current_speed = std::atomic<float>(0.0f),
-    .current_acc = std::atomic<float>(0.0f),
-    .max_speed = 5.2f,
-    .max_acc = 100.0f,
-    .max_jerk = 1500.0f, //to have a fluid movement, the servo should be able to reach the target acceleration in 0.1 seconds, so jerk = acc / 0.1s
-};
-
-//  S-curve (jerk-limited) motion profile – state machine with 7 phases
-
-//   ACCEL_JUP   jerk > 0 : acc  0  -> +a_max
-//   ACCEL_CONST jerk = 0 : acc  = +a_max          (skipped if v_max < a²/j)
-//   ACCEL_JDN   jerk < 0 : acc  +a_max -> 0
-//   CRUISE      jerk = 0 : acc  = 0, vel = v_max  (skipped for short paths)
-//   DECEL_JUP   jerk < 0 : acc  0  -> −a_max
-//   DECEL_CONST jerk = 0 : acc  = −a_max          (skipped if vel_peak < a²/j)
-//   DECEL_JDN   jerk > 0 : acc  −a_max -> 0
-
-
-typedef enum {
-    PH_ACCEL_JUP = 0,
-    PH_ACCEL_CONST,
-    PH_ACCEL_JDN,
-    PH_CRUISE,
-    PH_DECEL_JUP,
-    PH_DECEL_CONST,
-    PH_DECEL_JDN,
-} MotionPhase;
-
-
-//TODO trim servo in order to have the middle point aligned correctly
-float decel_distance(float v, float a_max, float j_max, float v_max);
-float decel_distance_sim(float v, float acc_init, float a_max, float j_max, float v_max);
-float decel_distance_with_acc(float v, float a, float a_max, float j_max, float v_max);
-void servo_timer_init();
-void move_servo_speed_task_state_machine(void * pvParameters);
-void send_movement_ack();
+#include "esp_log.h"
+#include <cmath>
 
 
 
-/// @brief  Numerically estimate the stopping distance with jerk and acceleration limits.
-/// using analytic formulas with quantized time steps led to some big errors. This
-/// function simulates the deceleration with time steps as close as possible to the control loop frequency.
-float decel_distance_sim(float v_init, float acc_init, float a_max, float j_max, float v_max) {
-    if (v_init <= 0.0f) return 0.0f;
-
-    const float dt = 0.002f; 
-    // starting speed and acceleration
-    float v = v_init;
-    float a = acc_init;
-    // distance covered so far
-    float x = 0.0f;
-    // capping the number of iterations to avoid infinite loops
-    const int max_iters = 20000;
-    //interrupting the simulation if the velocity is very low
-    for (int i = 0; i < max_iters && v > 1e-6f; ++i) {
-        //target acceleration is the maximum allowed acceleration but is negative because we want to decelerate
-        const float target_a = -a_max;
-        // if the target acceleration is already reached, we don't need to apply jerk
-        float j = 0.0f;
-        if (a > target_a) j = -j_max;
-        // updating the acceleration of the next step and clamping it to the target acceleration
-        float a_next = a + j * dt;
-        if (a_next < target_a) a_next = target_a;
-        // we use the average of the acceleration because the acceleration changes linearly during the time step
-        // so the average acceleration is the best estimate of the actual acceleration during the time step
-        // because the area under the acceleration curve is the change in velocity,
-        // because the area is a triangle with base dt and height a_next-a, the average acceleration is a + (a_next - a) / 2 = (a + a_next) / 2
-        float a_avg = 0.5f * (a + a_next);
-        float v_next = v + a_avg * dt;
-        
-        // clamping velocity to max
-        if (v_next > v_max) v_next = v_max;
-        // if the speed correctly goes to zero
-        if (v_next <= 0.0f) {
-            // calculating the exact time to stop with protection against division by 0
-            float t_stop = (a_avg == 0.0f) ? dt : (-v / a_avg);
-            // sanitizing t_stop
-            if (t_stop < 0.0f) t_stop = dt;
-            // adding the final bit of distance covered until full stop with linear accelerated motion
-            x += v * t_stop + 0.5f * a_avg * t_stop * t_stop;
-            return x;
-        }
-        // updating distance with linear accelerated motion
-        x += v * dt + 0.5f * a_avg * dt * dt;
-        v = v_next;
-        a = a_next;
-    }
-    return x;
-}
-
-/// @brief Calculates the distance required to decelerate from a given velocity to zero
-float decel_distance(float v, float a_max, float j_max, float v_max) {
-    return decel_distance_sim(v, 0.0f, a_max, j_max, v_max);
-}
-
-/// @brief Calculates the distance required to decelerate from a given velocity and acceleration to zero
-float decel_distance_with_acc(float v, float a, float a_max, float j_max, float v_max) {
-    // if we're not currently accelerating (a <= 0) the fallback is the same
-    // as decel_distance.
-    if (a <= 0.0f) return decel_distance(v, a_max, j_max, v_max);
-    return decel_distance_sim(v, a, a_max, j_max, v_max);
-}
-
-//TODO forse questa funzione era già stata fatta da cesare?
 void send_movement_ack(){
     PayloadServoAck ack;
     ack.sender_id=SELF_ID;
@@ -133,61 +19,6 @@ void send_movement_ack(){
 }
 
 //TODO add task to send continuous updates about the position
-
-void servo_timer_init(){
-    servo_data.duty_res =ledc_find_suitable_duty_resolution(80000000, 50);//auto clock freq of 80MHz and timer freq of 50Hz, the most common servo frequency
-    ledc_timer_config_t timer_config ={
-        .speed_mode=LEDC_LOW_SPEED_MODE, //low speed is sufficient for controlling a servo
-        .duty_resolution = static_cast<ledc_timer_bit_t>(servo_data.duty_res),
-        .timer_num=LEDC_TIMER_0, //timer number
-        .freq_hz=50,
-        .clk_cfg=LEDC_AUTO_CLK,
-        .deconfigure=false,
-    };
-    ledc_timer_config(&timer_config);
-    ledc_channel_config_t channel_config={
-        .gpio_num=servo_data.gpio, //signal pin of the servo
-        .speed_mode=LEDC_LOW_SPEED_MODE,
-        .channel=LEDC_CHANNEL_0,
-        .intr_type=LEDC_INTR_DISABLE,
-        .timer_sel=LEDC_TIMER_0,
-        .duty=0,
-        .hpoint=0,
-    };
-    ledc_channel_config(&channel_config);
-}
-//converting degrees to radians
-float rad_from_deg(int32_t degrees){
-    return ((float)degrees/360.0 * 2*M_PI);
-}
-
-//this type of servo has a frequency of 50Hz and, considering the trimming zone they accept a signal that
-// ranges from ~351ms to ~2640 ms  that corresponde to a range of motion of nearly ~309 degrees 
-/// NOTE this function isn't meant to be used alone, it is used by the move_servo_speed function to set the position of the servo, if you want to set the position directly use move_servo_speed with speed=1.0f
-esp_err_t set_servo_pos(float rad){
-    if (rad>=servo_data.min_pos && rad<=servo_data.max_pos){
-        ESP_LOGI("SERVO_API", "Posizione impostata: %.4f rad", rad);
-        double mid_point=servo_data.sgnl_min_duty+(servo_data.sgnl_max_duty-servo_data.sgnl_min_duty)/2.0;
-        //double time= mid_point+rad/servo_data.max_pos*(servo_data.sgnl_max_duty-servo_data.sgnl_min_duty)/2.0; //calculating the signal time
-        double time= mid_point+(rad+trim)/(1.5*M_PI)*(servo_data.sgnl_max_duty-servo_data.sgnl_min_duty); //calculating the signal time
-        uint32_t max_duty = (1 << servo_data.duty_res);
-        uint32_t duty= (uint32_t)(time/20000.0*max_duty); //fraction of the period in micro-seconds
-        ledc_set_duty(
-            LEDC_LOW_SPEED_MODE,
-            LEDC_CHANNEL_0,
-            duty
-        );
-        ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
-        // Update the logical current position (this is the commanded position,
-        // not a physical feedback sample). Use atomic store for clarity.
-        servo_data.current_pos.store(rad);
-        return ESP_OK;
-    }
-    else{
-        return ESP_ERR_INVALID_ARG;
-    }
-
-}
 
  void move_servo_speed_task_state_machine(void *pvParameters) {
     ServoTaskParams cmd;
@@ -444,5 +275,3 @@ void servo_init(){
     move_servo_speed(0.0f, 1.0f, servo_data.max_acc, servo_data.max_jerk); //moving the servo to the initial position with max speed, acc and jerk to ensure a fast initialization
     vTaskDelay(pdMS_TO_TICKS(1000));
 }
-
-
