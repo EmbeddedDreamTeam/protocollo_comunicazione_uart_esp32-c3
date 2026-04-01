@@ -15,7 +15,6 @@ static const char* TAG = "Main";
 static constexpr char     AP_SSID[]     = "ESP32-C3-AP";
 static constexpr char     AP_PASSWORD[] = "12345678";
 static constexpr uint16_t TCP_PORT      = 3333;
-static constexpr uint8_t  NUM_SERVOS    = 3;   // ← cambia in base ai servos collegati
 // -----------------------------------------------------------------------
 
 void init_wifi(){
@@ -43,7 +42,7 @@ void init_wifi(){
             ProtocolManager::handle_incoming(line);
         },
         []() {                                       // on_connect
-            ProtocolManager::set_num_servos(NUM_SERVOS);
+            ProtocolManager::set_num_servos(0);
         }
     );
 
