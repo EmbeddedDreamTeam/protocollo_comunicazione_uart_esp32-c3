@@ -40,7 +40,7 @@ void init_uart_comms(){
   //todo for test
   
   //!!!ID!!!
-  SELF_ID = 0; 
+  SELF_ID = 2; 
 
   //*LOGS
   SHOW_UART_COMMS_LOGS = 1;

@@ -72,7 +72,7 @@ void suspend_loop_blink(){
 
 void init_led(){
     gpio_reset_pin(LED_GPIO);
-    gpio_set_direction(LED_GPIO, GPIO_MODE_OUTPUT);
+    gpio_set_direction(LED_GPIO, GPIO_MODE_INPUT_OUTPUT);
     toggle_led(0);
     xTaskCreate(task_blink_led_once, "task_blink_led_once", 2048, nullptr, 24, &h_task_blink_led_once);
     xTaskCreate(task_blink_led_loop, "task_blink_led_loop", 2048, nullptr, 2, &h_task_blink_led_loop);

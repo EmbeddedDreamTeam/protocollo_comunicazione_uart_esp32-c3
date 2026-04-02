@@ -35,10 +35,12 @@ typedef struct {
     float max_speed;
     float max_acc;
     float max_jerk;
+    std::atomic<bool> moving;
 } ServoData;
 //modern C++ style type definition for declaring global variables in the header file without violating the one definition rule, and ensuring type safety
 
 inline constexpr float trim= 0.07f*M_PI;
+inline constexpr float backlash= 10.0f/180.0f*M_PI; //trying to compensate for backlash by n degrees
 inline constexpr int servo_deadzone_ms=2;
 extern ServoData servo_data;
 extern float servo_deadzone;

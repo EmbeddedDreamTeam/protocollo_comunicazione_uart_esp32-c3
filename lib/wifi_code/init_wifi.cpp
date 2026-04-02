@@ -42,7 +42,7 @@ void init_wifi(){
             ProtocolManager::handle_incoming(line);
         },
         []() {                                       // on_connect
-            ProtocolManager::set_num_servos(0);
+            ProtocolManager::set_num_servos(1);
         }
     );
 
