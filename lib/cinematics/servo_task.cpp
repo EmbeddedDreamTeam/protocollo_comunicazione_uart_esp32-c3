@@ -18,7 +18,6 @@ void send_movement_ack(){
     // a use-after-free and intermittent crashes.
 }
 
-//TODO add task to send continuous updates about the position
 
  void move_servo_speed_task_state_machine(void *pvParameters) {
     ServoTaskParams cmd;
@@ -26,6 +25,10 @@ void send_movement_ack(){
     TickType_t xFrequency  = pdMS_TO_TICKS(20);
 
     while (1) {
+        // by passing the portMAX_DELAY to xQueueReceive, we ensure that the task will be blocked until
+        // there is a new command in the queue
+        // (the third parameter is xTicksToWait that specify the maximum amount of time the task should
+        // be blocked waiting for a command)
         if (!xQueueReceive(xServoQueue, &cmd, portMAX_DELAY)) continue;
 
         bool restart;
@@ -209,8 +212,15 @@ void send_movement_ack(){
                 servo_data.current_speed.store(vel);
                 servo_data.current_acc.store(acc);
                 servo_data.current_pos.store(pos);
-                set_servo_pos(pos);
-
+                //making sure that the servo accepts the new position command,
+                // if the new position signal is different from the previous one less than the deadzone
+                // the servo will drop that command and keep the previous one
+                if (fabsf(pos - target) > servo_deadzone){
+                    set_servo_pos(pos);
+                }
+                else{
+                    set_servo_pos(target);
+                }
                 if (!done) vTaskDelayUntil(&xLastWake, xFrequency);
             }
         } while (restart);

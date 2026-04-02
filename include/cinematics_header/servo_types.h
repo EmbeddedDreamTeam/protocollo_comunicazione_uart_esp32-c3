@@ -39,7 +39,9 @@ typedef struct {
 //modern C++ style type definition for declaring global variables in the header file without violating the one definition rule, and ensuring type safety
 
 inline constexpr float trim= 0.07f*M_PI;
+inline constexpr int servo_deadzone_ms=2;
 extern ServoData servo_data;
+extern float servo_deadzone;
 
 extern QueueHandle_t xServoQueue; //queue handler
 extern TaskHandle_t xTaskHandle; //task handler

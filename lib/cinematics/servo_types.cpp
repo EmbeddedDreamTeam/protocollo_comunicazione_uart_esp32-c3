@@ -20,3 +20,5 @@ ServoData servo_data = {
     .max_acc = 100.0f,
     .max_jerk = 1500.0f, //to have a fluid movement, the servo should be able to reach the target acceleration in 0.1 seconds, so jerk = acc / 0.1s
 };
+
+float servo_deadzone = 270.0f/(servo_data.sgnl_max_duty-servo_data.sgnl_min_duty)*servo_deadzone_ms;
