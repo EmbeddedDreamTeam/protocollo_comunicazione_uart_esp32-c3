@@ -240,7 +240,13 @@ void send_movement_ack(){
         servo_data.moving.store(false);
         if (backlash_compensation){
             // if we have done a backlash compensation, we need to move the servo back to the original target position to compensate for the backlash
-            xQueueSend(xServoQueue, &cmd, 0); // we can send the command directly to the queue, the FSM will take care of executing it immediately
+            vTaskDelay(pdMS_TO_TICKS(500)); 
+            ServoTaskParams backlash_cmd;
+            backlash_cmd.target_rad = cmd.target_rad;
+            backlash_cmd.speed = 0.5f;
+            backlash_cmd.acc = 10.0f;
+            backlash_cmd.jerk = 30.0f;
+            xQueueSend(xServoQueue, &backlash_cmd, 0); // we can send the command directly to the queue, the FSM will take care of executing it immediately
         }
         else{
             send_movement_ack();
@@ -282,7 +288,7 @@ void servo_init(){
     servo_timer_init();
 
     // ensure logical current position has a known value before task start
-    servo_data.current_pos.store(0.1f);
+    servo_data.current_pos.store(-0.1f);
 
     // creating the queue with the designed lenght
     xServoQueue = xQueueCreate(SERVO_QUEUE_LEN, sizeof(ServoTaskParams));
