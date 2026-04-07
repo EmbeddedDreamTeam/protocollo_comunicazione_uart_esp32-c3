@@ -23,8 +23,8 @@ typedef struct {
     int8_t gpio;
     uint32_t sgnl_min_duty;
     uint32_t sgnl_max_duty;
-    // these values ranges from -5/6*PI rads to +5/6*PI corresponding to -150 degrees to +150 degrees,
-    // with a total range of motion of 300 degrees, not ~309 in order to have some margin
+    // these values ranges from (-30.5/36+0.07)*PI rads to (+30.5/36-0.07)*PI corresponding to -139.9 degrees to +139.9 degrees,
+    // with a total range of motion of 279.8 degrees, not ~309 in order to have some margin
     // because if the potentiometer barely exceeds this value, the servo will execute a +360 degrees rotation
     // in order to go back to the setted position
     float min_pos;
