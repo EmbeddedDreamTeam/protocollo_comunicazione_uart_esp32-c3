@@ -6,6 +6,7 @@
 #include "tcp_server.h"
 #include "protocol_manager.h"
 #include "utils_uart_comms.h"
+#include "protocol_manager.h"
 
 static const char* TAG = "Main";
 
@@ -50,10 +51,10 @@ void init_wifi(){
         [](const std::string& line) {               // on_receive
             ProtocolManager::handle_incoming(line);
         },
-        nullptr
-        //[]() {                                       // on_connect
-         //   ProtocolManager::set_num_servos(1);
-        //}
+        []() {
+            reply("SERVOS " + std::to_string(s_num_servos));                                       // on_connect
+            ProtocolManager::set_num_servos(1);
+        }
     );
 
     ESP_LOGI(TAG, "Pronto! Connettiti alla rete '%s' e usa:", AP_SSID);

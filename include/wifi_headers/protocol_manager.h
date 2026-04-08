@@ -11,6 +11,7 @@ using ServoCommandCallback =  std::function<void(const std::vector<float>&,
                                            const std::vector<float>&, 
                                            const std::vector<float>&, 
                                            const std::vector<float>&)>;
+void reply(const std::string& msg);
 class ProtocolManager {
 public:
     /**
@@ -34,3 +35,4 @@ public:
      */
     static void handle_incoming(const std::string& line);
 };
+extern uint8_t s_num_servos;
