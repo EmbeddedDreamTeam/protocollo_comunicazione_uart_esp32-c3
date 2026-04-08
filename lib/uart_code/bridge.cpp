@@ -11,7 +11,7 @@ using namespace std;
 #endif
 
 
-void convert_servo_instructions(const std::vector<float>& angles){
+void convert_servo_instructions(const std::vector<float>& angles, const std::vector<float>& velocities, const std::vector<float>& accelerations , const std::vector<float>& jerks){
     int total_nodes = get_ids_array_len();
     int ids_arr[total_nodes];
     get_ids_array(ids_arr, total_nodes);
@@ -31,9 +31,9 @@ void convert_servo_instructions(const std::vector<float>& angles){
         // Convert degree (uint16_t) to Radians (float) as expected by your Payload struct
         p.payload_servo.radians = angles[i] * (M_PI / 180.0f); //! ATTENTO ALLA CONVERSIONE IN RADIANTI, LA VUOI VERAMENTE???
         // Provide safe defaults for motion parameters if the sender doesn't set them
-        p.payload_servo.speed = 1.0f;           // default normalized speed (1.0 = full)
-        p.payload_servo.acceleration = 100.0f;  // reasonable default
-        p.payload_servo.jerk = 1500.0f;         // reasonable default
+        p.payload_servo.speed = velocities[i];           // default normalized speed (1.0 = full)
+        p.payload_servo.acceleration =  accelerations[i];  // reasonable default
+        p.payload_servo.jerk =  jerks[i];         // reasonable default
 
         int target_id = ids_arr[i];
 
