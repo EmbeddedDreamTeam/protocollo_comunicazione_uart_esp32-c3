@@ -4,6 +4,7 @@ ESP32-C3 Servo Controller — Python Client (Auto/Manual Flag Edition)
 - Connects to the ESP32 Access Point via TCP
 - Uses a flag to choose between Automatic Sequence or Manual Input
 - Waits for an 'ACK' from ESP32 before sending the next step in Auto mode
+- Automatically appends default Speed, Acc, and Jerk to each angle
 """
 
 import socket
@@ -12,7 +13,7 @@ import sys
 import time
 
 # ===========================================================================
-# CONFIGURAZIONE PRINCIPALE
+# CONFIGURAZIONE PRINCIPALE E VALORI DI DEFAULT
 # ===========================================================================
 ESP_HOST = "192.168.4.1"
 ESP_PORT = 3333
@@ -21,6 +22,11 @@ ESP_PORT = 3333
 # True  -> Esegue automaticamente la sequenza e poi si ferma.
 # False -> Entra in modalità manuale e aspetta il tuo input da tastiera.
 AUTO_MODE = False
+
+# Valori di default per ogni movimento
+DEFAULT_SPEED = 1.0
+DEFAULT_ACC = 100.0
+DEFAULT_JERK = 1500.0
 # ===========================================================================
 
 num_servos = None
@@ -29,14 +35,13 @@ num_servos = None
 ack_event = threading.Event()   # Semaforo per l'attesa dell'ACK tra un movimento e l'altro
 ready_event = threading.Event() # Semaforo per aspettare che l'ESP32 sia connesso e pronto
 
-# La sequenza di test
+# La sequenza di test (solo angoli, il programma aggiungerà i restanti parametri)
 TARGET_SEQUENCE = [
     [0, 0, 0, 0],
 
     [-139, -139, -139, -139],
     [-139, -139, -139, -139],
 
-    
     # Target: [-139, -60, -60, -139] (4 motori da muovere -> diviso in 2 step)
     [-139, -60, 0, 0],
     [-139, -60, -60, -139],
@@ -113,7 +118,6 @@ def receiver(sock: socket.socket) -> None:
             chunk = sock.recv(1024).decode("utf-8")
             if not chunk:
                 print("\n[disconnected] L'ESP32 ha chiuso la connessione.")
-                # Sblocchiamo eventuali eventi appesi prima di uscire
                 ready_event.set() 
                 ack_event.set()
                 sys.exit(0)
@@ -125,8 +129,9 @@ def receiver(sock: socket.socket) -> None:
                 if not line:
                     continue
 
-                # Cerca l'ACK
-                if "OK" or "ACK" in line.upper() or "DONE" in line.upper():
+                # Cerca l'ACK o OK (Corretto il bug logico di Python)
+                line_up = line.upper()
+                if "OK" in line_up or "ACK" in line_up or "DONE" in line_up:
                     ack_event.set()
 
                 # Parse SERVOS message all'avvio
@@ -153,7 +158,12 @@ def run_sequence(sock: socket.socket) -> None:
     time.sleep(2.0) # Piccola pausa di sicurezza per far stabilizzare l'hardware
     
     for step_idx, angles in enumerate(TARGET_SEQUENCE):
-        message = " ".join(str(a ) for a in angles) + "\n"
+        # Costruisce la stringa aggiungendo vel, acc e jerk a ogni angolo
+        parts = []
+        for a in angles:
+            parts.append(f"{a} {DEFAULT_SPEED} {DEFAULT_ACC} {DEFAULT_JERK}")
+            
+        message = " ".join(parts) + "\n"
         
         ack_event.clear()
         
@@ -212,7 +222,8 @@ def main() -> None:
         # Modalità Manuale
         print("\n=======================================================")
         print(" MODALITÀ MANUALE ATTIVA")
-        print(" Inserisci gli angoli separati da spazio e premi Invio.")
+        print(" Inserisci SOLO gli angoli separati da spazio e premi Invio.")
+        print(" I valori di Velocità, Accelerazione e Jerk verranno aggiunti in automatico.")
         print(" (es: 90.5 0 -45.2 120)")
         print(" Scrivi 'quit' per uscire.")
         print("=======================================================\n")
@@ -229,7 +240,13 @@ def main() -> None:
                 if not raw:
                     continue
 
-                message = raw + "\n"
+                # Espande l'input manuale aggiungendo i valori di default
+                tokens = raw.split()
+                parts = []
+                for token in tokens:
+                    parts.append(f"{token} {DEFAULT_SPEED} {DEFAULT_ACC} {DEFAULT_JERK}")
+                
+                message = " ".join(parts) + "\n"
                 sock.sendall(message.encode("utf-8"))
 
         except (KeyboardInterrupt, EOFError):
