@@ -135,5 +135,5 @@ void task_execute_servo(void *arg);
 
 
 //*BRIDGE_WIFI.CPP
-void convert_servo_instructions(const std::vector<float>& angles);
+void convert_servo_instructions(const std::vector<float>& angles, const std::vector<float>& velocities, const std::vector<float>& accelerations , const std::vector<float>& jerks);
 

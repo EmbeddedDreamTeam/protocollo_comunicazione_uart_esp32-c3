@@ -23,14 +23,23 @@ void init_wifi(){
     // 2. Avvia Access Point Wi-Fi
     WifiManager::init_ap(AP_SSID, AP_PASSWORD);
 
-    // 3. Inizializza protocollo — invia subito "SERVOS 3" al computer alla connessione
-    ProtocolManager::init(1, [](const std::vector<float>& angles) { //! ho tolto NUM_SERVOS e messo 1
-        ESP_LOGI(TAG, "Comando servo ricevuto:");
+    // 3. Inizializza protocollo — invia "SERVOS 1" al computer alla connessione
+    ProtocolManager::init(1, [](const std::vector<float>& angles, 
+                                const std::vector<float>& velocities, 
+                                const std::vector<float>& accelerations, 
+                                const std::vector<float>& jerks) { //! Riceve i 4 vettori
+        
+        ESP_LOGI(TAG, "Comandi servo ricevuti:");
         for (int i = 0; i < (int)angles.size(); i++) {
-            ESP_LOGI(TAG, "  Servo %d → %d°", i, angles[i]);
+            // Uso %.1f perché i valori sono float. Modifica il numero dopo il punto per più o meno decimali.
+            ESP_LOGI(TAG, "  Servo %d → Angolo: %.1f°, Vel: %.1f, Acc: %.1f, Jerk: %.1f", 
+                     i, angles[i], velocities[i], accelerations[i], jerks[i]);
         }
+
         // CHIAMATA AL BRIDGE: Questo invia i messaggi via UART/Coda Locale
-        convert_servo_instructions(angles);
+        // ATTENZIONE: Ricordati di aggiornare anche la funzione convert_servo_instructions
+        // affinché accetti i nuovi parametri!
+        convert_servo_instructions(angles, velocities, accelerations, jerks);
     });
 
     // 4. Avvia TCP server — invia SERVOS appena il computer si connette

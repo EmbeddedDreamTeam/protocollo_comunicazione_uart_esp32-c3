@@ -7,8 +7,10 @@
 
 // Callback chiamata quando arriva un comando valido dal computer.
 // Contiene gli angoli dei servomotori (1-5 valori, range 0-270).
-using ServoCommandCallback = std::function<void(const std::vector<float>& angles)>;
-
+using ServoCommandCallback =  std::function<void(const std::vector<float>&, 
+                                           const std::vector<float>&, 
+                                           const std::vector<float>&, 
+                                           const std::vector<float>&)>;
 class ProtocolManager {
 public:
     /**
