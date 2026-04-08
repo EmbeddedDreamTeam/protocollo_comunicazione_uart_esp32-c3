@@ -8,8 +8,8 @@
 static const char* TAG = "ProtocolManager";
 
 static constexpr uint8_t  MAX_SERVOS   = 5;
-static constexpr uint16_t ANGLE_MIN    = 0;
-static constexpr uint16_t ANGLE_MAX    = 270;
+static constexpr float ANGLE_MIN    = -139.0;
+static constexpr float ANGLE_MAX    = +139.0;
 
 namespace {
     static uint8_t               s_num_servos = 0;
@@ -46,46 +46,50 @@ void ProtocolManager::set_num_servos(uint8_t num_servos) //!HERE
     ESP_LOGI(TAG, "Periferiche collegate: %d", s_num_servos);
 }
 
+#include <cstdlib> 
+
 void ProtocolManager::handle_incoming(const std::string& line)
 {
     ESP_LOGI(TAG, "<- Computer: %s", line.c_str());
 
-    // Parse space-separated integers
     std::vector<float> angles;
     std::istringstream stream(line);
     std::string token;
 
     while (stream >> token) {
-        // Check each token is a valid integer
-        for (char c : token) {
-            if (!isdigit(c)) {
-                reply("ERROR invalid_format — expected integers separated by spaces");
-                return;
-            }
-        }
-
-        int value = std::stoi(token);
-
-        if (value < ANGLE_MIN || value > ANGLE_MAX) {
-            reply("ERROR angle_out_of_range — value " + std::to_string(value) +
-                  " is outside allowed range [0, 270]");
+        char* endptr = nullptr;
+        
+        // strtof prende una stringa C-style (const char*) e un puntatore a char (endptr).
+        float value = std::strtof(token.c_str(), &endptr);
+        
+        // Controllo errori senza eccezioni:
+        // 1. Se endptr è uguale all'inizio della stringa, non è stato trovato nessun numero (es. "ciao").
+        // 2. Se *endptr non è il terminatore nullo '\0', ci sono caratteri spuri alla fine (es. "139.9abc").
+        if (endptr == token.c_str() || *endptr != '\0') {
+            reply("ERROR invalid_format — expected numbers (e.g. -139.9) separated by spaces");
             return;
         }
 
-        angles.push_back(static_cast<float>(value));
+        // Controllo del range
+        if (value < ANGLE_MIN || value > ANGLE_MAX) {
+            std::string error_msg = "ERROR angle_out_of_range — value " + token +
+                                    " is outside allowed range [" + 
+                                    std::to_string(ANGLE_MIN) + ", " + 
+                                    std::to_string(ANGLE_MAX) + "]";
+            reply(error_msg);
+            return;
+        }
+
+        angles.push_back(value);
 
         if (angles.size() > MAX_SERVOS) {
-            reply("ERROR too_many_values — max allowed is " +
-                  std::to_string(MAX_SERVOS));
+            reply("ERROR too_many_values — max allowed is " + std::to_string(MAX_SERVOS));
             return;
         }
-        // send the angles to the corresponding cubes
-        // the values stored in array correspond to the order of the receiving cubes
-
     }
 
     if (angles.empty()) {
-        reply("ERROR empty_command — send angles separated by spaces, e.g. '0 90 180'");
+        reply("ERROR empty_command — send angles separated by spaces, e.g. '0 90.5 -139.9'");
         return;
     }
 

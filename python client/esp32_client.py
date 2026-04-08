@@ -1,33 +1,108 @@
 """
-ESP32-C3 Servo Controller — Python Client
+ESP32-C3 Servo Controller — Python Client (Auto/Manual Flag Edition)
 ------------------------------------------
 - Connects to the ESP32 Access Point via TCP
-- Reads the number of connected servos automatically
-- Lets you send angle commands interactively
-- Prints all messages received from the ESP32
-
-Usage:
-    python3 esp32_client.py
-
-Requirements:
-    Python 3.6+, no external libraries needed.
+- Uses a flag to choose between Automatic Sequence or Manual Input
+- Waits for an 'ACK' from ESP32 before sending the next step in Auto mode
 """
 
 import socket
 import threading
 import sys
+import time
 
+# ===========================================================================
+# CONFIGURAZIONE PRINCIPALE
+# ===========================================================================
 ESP_HOST = "192.168.4.1"
 ESP_PORT = 3333
 
-ANGLE_MIN = 0
-ANGLE_MAX = 270
+# FLAG DI MODALITÀ:
+# True  -> Esegue automaticamente la sequenza e poi si ferma.
+# False -> Entra in modalità manuale e aspetta il tuo input da tastiera.
+AUTO_MODE = False
+# ===========================================================================
 
-num_servos = None  # will be set when ESP32 sends "SERVOS N"
+num_servos = None
 
+# Sincronizzazione thread
+ack_event = threading.Event()   # Semaforo per l'attesa dell'ACK tra un movimento e l'altro
+ready_event = threading.Event() # Semaforo per aspettare che l'ESP32 sia connesso e pronto
+
+# La sequenza di test
+TARGET_SEQUENCE = [
+    [0, 0, 0, 0],
+
+    [-139, -139, -139, -139],
+    [-139, -139, -139, -139],
+
+    
+    # Target: [-139, -60, -60, -139] (4 motori da muovere -> diviso in 2 step)
+    [-139, -60, 0, 0],
+    [-139, -60, -60, -139],
+    
+    # Target: [139, -60, -60, 139] (2 motori da muovere -> 1 step)
+    [139, -60, -60, 139],
+    
+    # Target: [139, -90, 139, 0] (3 motori da muovere -> diviso in 2 step)
+    [139, -90, 139, 139],
+    [139, -90, 139, 0],
+    
+    # Target: [-139, -90, 100, 0] (2 motori da muovere -> 1 step)
+    [-139, -90, 100, 0],
+    
+    # Target: [-139, 0, -120, 0] (2 motori da muovere -> 1 step)
+    [-139, 0, -120, 0],
+    
+    # Target: [0, 0, 120, 139] (3 motori da muovere -> diviso in 2 step)
+    [0, 0, 120, 0],
+    [0, 0, 120, 139],
+    
+    # Target: [0, 60, 60, -139] (3 motori da muovere -> diviso in 2 step)
+    [0, 60, 60, 139],
+    [0, 60, 60, -139],
+    
+    # Target: [139, 60, 139, 139] (3 motori da muovere -> diviso in 2 step)
+    [139, 60, 139, -139],
+    [139, 60, 139, 139],
+    
+    # Target: [-139, 60, -139, -139] (3 motori da muovere -> diviso in 2 step)
+    [-139, 60, -139, 139],
+    [-139, 60, -139, -139],
+    
+    # Target: [139, 60, 139, 139] (3 motori da muovere -> diviso in 2 step)
+    [139, 60, 139, -139],
+    [139, 60, 139, 139],
+    
+    # Target: [139, 120, 0, 0] (3 motori da muovere -> diviso in 2 step)
+    [139, 120, 0, 139],
+    [139, 120, 0, 0],
+    
+    # Target: [-139, 120, 0, 0] (1 motore da muovere -> 1 step)
+    [-139, 120, 0, 0],
+    
+    # Target: [-139, 120, 120, 0] (1 motore da muovere -> 1 step)
+    [-139, 120, 120, 0],
+    
+    # Target: [-139, 0, 120, 120] (2 motori da muovere -> 1 step)
+    [-139, 0, 120, 120],
+    
+    # Target: [-139, 60, -60, -139] (3 motori da muovere -> diviso in 2 step)
+    [-139, 60, -60, 120],
+    [-139, 60, -60, -139],
+    
+    # Target: [139, 60, -60, -139] (1 motore da muovere -> 1 step)
+    [139, 60, -60, -139],
+    
+    # Target: [0, 0, 0, 0] (4 motori da muovere -> diviso in 2 step)
+    [0, 0, -60, -139],
+
+    [0, 0, 0, 0]
+]
+   
 
 # ---------------------------------------------------------------------------
-# Receiver thread — prints every message coming from the ESP32
+# Receiver thread
 # ---------------------------------------------------------------------------
 def receiver(sock: socket.socket) -> None:
     global num_servos
@@ -37,7 +112,10 @@ def receiver(sock: socket.socket) -> None:
         try:
             chunk = sock.recv(1024).decode("utf-8")
             if not chunk:
-                print("\n[disconnected] ESP32 closed the connection.")
+                print("\n[disconnected] L'ESP32 ha chiuso la connessione.")
+                # Sblocchiamo eventuali eventi appesi prima di uscire
+                ready_event.set() 
+                ack_event.set()
                 sys.exit(0)
 
             buffer += chunk
@@ -47,106 +125,117 @@ def receiver(sock: socket.socket) -> None:
                 if not line:
                     continue
 
-                # Parse SERVOS message
+                # Cerca l'ACK
+                if "OK" or "ACK" in line.upper() or "DONE" in line.upper():
+                    ack_event.set()
+
+                # Parse SERVOS message all'avvio
                 if line.startswith("SERVOS "):
                     try:
                         num_servos = int(line.split()[1])
-                        print(f"\n[esp32] Connected servos: {num_servos}")
-                        print(f"[esp32] Send {num_servos} angle(s) between "
-                              f"{ANGLE_MIN} and {ANGLE_MAX}, separated by spaces.")
-                        print("        Type 'quit' to exit.\n> ", end="", flush=True)
+                        print(f"\n[esp32] Rilevati {num_servos} servi connessi.")
+                        ready_event.set() # Diamo il via libera al main()
                     except (IndexError, ValueError):
                         print(f"\n[esp32] {line}")
                 else:
-                    print(f"\n[esp32] {line}\n> ", end="", flush=True)
+                    print(f"\n[esp32] {line}")
 
         except OSError:
-            print("\n[disconnected] Connection lost.")
+            print("\n[disconnected] Connessione persa.")
             sys.exit(0)
 
 
 # ---------------------------------------------------------------------------
-# Input validation
+# Funzione Sequenza Automatica
 # ---------------------------------------------------------------------------
-def validate_command(raw: str) -> list[int] | None:
-    """
-    Validates the user input and returns a list of angles,
-    or None if the input is invalid (prints an error message).
-    """
-    if num_servos is None:
-        print("[wait] Still waiting for servo count from ESP32...")
-        return None
+def run_sequence(sock: socket.socket) -> None:
+    print("\n[sequence] Avvio sequenza automatica tra 15 secondi...")
+    time.sleep(2.0) # Piccola pausa di sicurezza per far stabilizzare l'hardware
+    
+    for step_idx, angles in enumerate(TARGET_SEQUENCE):
+        message = " ".join(str(a ) for a in angles) + "\n"
+        
+        ack_event.clear()
+        
+        print(f"[sequence] Invio step {step_idx + 1}/{len(TARGET_SEQUENCE)}: {message.strip()}")
+        sock.sendall(message.encode("utf-8"))
+        
+        # Aspetta l'ACK
+        ack_received = ack_event.wait(timeout=15.0)
+        
+        if not ack_received:
+            print(f"[error] Timeout! Nessun ACK ricevuto per lo step {step_idx + 1}. Interrompo.")
+            break
+            
+        print("[sequence] ACK ricevuto! Procedo...\n")
+        time.sleep(3) # Pausa tra i movimenti
 
-    tokens = raw.strip().split()
-
-    if len(tokens) != num_servos:
-        print(f"[error] Expected {num_servos} value(s), got {len(tokens)}. "
-              f"Example: {' '.join(['90'] * num_servos)}")
-        return None
-
-    angles = []
-    for token in tokens:
-        if not token.isdigit():
-            print(f"[error] '{token}' is not a valid integer.")
-            return None
-        angle = int(token)
-        if not (ANGLE_MIN <= angle <= ANGLE_MAX):
-            print(f"[error] Angle {angle} is out of range "
-                  f"[{ANGLE_MIN}, {ANGLE_MAX}].")
-            return None
-        angles.append(angle)
-
-    return angles
+    print("[sequence] Test automatico completato!")
 
 
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 def main() -> None:
-    print(f"Connecting to ESP32 at {ESP_HOST}:{ESP_PORT} ...")
+    print(f"Connessione all'ESP32 su {ESP_HOST}:{ESP_PORT} ...")
 
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.connect((ESP_HOST, ESP_PORT))
-    except ConnectionRefusedError:
-        print("[error] Connection refused. Is the ESP32 running and reachable?")
-        sys.exit(1)
-    except OSError as e:
-        print(f"[error] Could not connect: {e}")
-        print("        Make sure your computer is connected to the 'ESP32-C3-AP' Wi-Fi network.")
+    except Exception as e:
+        print(f"[error] Impossibile connettersi: {e}")
         sys.exit(1)
 
-    print("Connected.\n")
+    print("Connesso. In attesa dei dati di avvio dall'ESP32...\n")
 
-    # Start background thread to receive messages
     t = threading.Thread(target=receiver, args=(sock,), daemon=True)
     t.start()
 
-    # Main thread handles user input
-    try:
-        while True:
-            raw = input("> ").strip()
+    # Aspettiamo che l'ESP32 comunichi di essere pronto (timeout 5 sec)
+    is_ready = ready_event.wait(timeout=5.0)
+    
+    if not is_ready:
+        print("[warning] Non ho ricevuto il setup iniziale dall'ESP32, ma provo a continuare lo stesso.")
 
-            if raw.lower() in ("quit", "exit", "q"):
-                print("Closing connection.")
-                sock.close()
-                sys.exit(0)
-
-            if not raw:
-                continue
-
-            angles = validate_command(raw)
-            if angles is None:
-                continue
-
-            message = " ".join(str(a) for a in angles) + "\n"
-            sock.sendall(message.encode("utf-8"))
-
-    except (KeyboardInterrupt, EOFError):
-        print("\nClosing connection.")
+    # ---------------------------------------------------------
+    # DIRAMAZIONE LOGICA BASATA SULLA FLAG
+    # ---------------------------------------------------------
+    time.sleep(15)
+    if AUTO_MODE:
+        # Modalità Automatica
+        run_sequence(sock)
+        print("Chiudo la connessione.")
         sock.close()
         sys.exit(0)
+        
+    else:
+        # Modalità Manuale
+        print("\n=======================================================")
+        print(" MODALITÀ MANUALE ATTIVA")
+        print(" Inserisci gli angoli separati da spazio e premi Invio.")
+        print(" (es: 90.5 0 -45.2 120)")
+        print(" Scrivi 'quit' per uscire.")
+        print("=======================================================\n")
+        
+        try:
+            while True:
+                raw = input("> ").strip()
 
+                if raw.lower() in ("quit", "exit", "q"):
+                    print("Chiudo la connessione.")
+                    sock.close()
+                    sys.exit(0)
+
+                if not raw:
+                    continue
+
+                message = raw + "\n"
+                sock.sendall(message.encode("utf-8"))
+
+        except (KeyboardInterrupt, EOFError):
+            print("\nChiudo la connessione.")
+            sock.close()
+            sys.exit(0)
 
 if __name__ == "__main__":
     main()
