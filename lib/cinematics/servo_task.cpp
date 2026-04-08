@@ -18,7 +18,6 @@ void send_movement_ack(){
     // a use-after-free and intermittent crashes.
 }
 
-//TODO add task to send continuous updates about the position
 
  void move_servo_speed_task_state_machine(void *pvParameters) {
     ServoTaskParams cmd;
@@ -26,15 +25,26 @@ void send_movement_ack(){
     TickType_t xFrequency  = pdMS_TO_TICKS(20);
 
     while (1) {
+        // by passing the portMAX_DELAY to xQueueReceive, we ensure that the task will be blocked until
+        // there is a new command in the queue
+        // (the third parameter is xTicksToWait that specify the maximum amount of time the task should
+        // be blocked waiting for a command)
         if (!xQueueReceive(xServoQueue, &cmd, portMAX_DELAY)) continue;
+        servo_data.moving.store(true);
+        bool backlash_compensation=false;
 
         bool restart;
         do {
             restart = false;
-
+            backlash_compensation=false;
             // initial state
             float pos    = servo_data.current_pos.load();
             float target = cmd.target_rad;
+
+            if (target < pos){
+                target= max(target - backlash, servo_data.min_pos);
+                backlash_compensation=true;
+            }
 
             // Clamping parameters 
             const float j = cmd.jerk > 0.0f ? cmd.jerk : servo_data.max_jerk;
@@ -61,7 +71,9 @@ void send_movement_ack(){
                 if (xQueueReceive(xServoQueue, &next, 0) == pdTRUE) {
                     servo_data.current_pos.store(pos);
                     cmd = next;
+                    // seting the flag to restart the FSM
                     restart = true;
+                    // breaking the loop to restart the FSM with the new command
                     break;
                     // we have to preserve the previous state
                 }
@@ -209,8 +221,15 @@ void send_movement_ack(){
                 servo_data.current_speed.store(vel);
                 servo_data.current_acc.store(acc);
                 servo_data.current_pos.store(pos);
-                set_servo_pos(pos);
-
+                //making sure that the servo accepts the new position command,
+                // if the new position signal is different from the previous one less than the deadzone
+                // the servo will drop that command and keep the previous one
+                if (fabsf(pos - target) > servo_deadzone){
+                    set_servo_pos(pos);
+                }
+                else{
+                    set_servo_pos(target);
+                }
                 if (!done) vTaskDelayUntil(&xLastWake, xFrequency);
             }
         } while (restart);
@@ -218,7 +237,20 @@ void send_movement_ack(){
         // updating final servo state with speed and acc = 0
         servo_data.current_speed.store(0.0f);
         servo_data.current_acc.store(0.0f);
-        send_movement_ack();
+        servo_data.moving.store(false);
+        if (backlash_compensation){
+            // if we have done a backlash compensation, we need to move the servo back to the original target position to compensate for the backlash
+            vTaskDelay(pdMS_TO_TICKS(500)); 
+            ServoTaskParams backlash_cmd;
+            backlash_cmd.target_rad = cmd.target_rad;
+            backlash_cmd.speed = 0.5f;
+            backlash_cmd.acc = 10.0f;
+            backlash_cmd.jerk = 30.0f;
+            xQueueSend(xServoQueue, &backlash_cmd, 0); // we can send the command directly to the queue, the FSM will take care of executing it immediately
+        }
+        else{
+            send_movement_ack();
+        }
     }
 }
 
@@ -233,6 +265,7 @@ esp_err_t move_servo_speed(float rad, float speed, float acc, float jerk){
 
     ServoTaskParams params;
     params.target_rad = rad;
+    // sanitizing input parameters to ensure they are within the servo limits
     params.speed = speed>servo_data.max_speed?servo_data.max_speed:speed;
     params.acc = acc>servo_data.max_acc?servo_data.max_acc:acc;
     params.jerk = jerk>servo_data.max_jerk?servo_data.max_jerk:jerk;
@@ -255,7 +288,7 @@ void servo_init(){
     servo_timer_init();
 
     // ensure logical current position has a known value before task start
-    servo_data.current_pos.store(0.1f);
+    servo_data.current_pos.store(-0.1f);
 
     // creating the queue with the designed lenght
     xServoQueue = xQueueCreate(SERVO_QUEUE_LEN, sizeof(ServoTaskParams));
@@ -269,6 +302,7 @@ void servo_init(){
         1,
         &xTaskHandle
     );
+    ESP_LOGI("SERVO_INIT", "Servo deadzone %f", servo_deadzone);
     //random delay to avoid all the servos to start at the same time and cause a big current absorption peak that could reset the board
     vTaskDelay(pdMS_TO_TICKS(rand()%3000)); 
     

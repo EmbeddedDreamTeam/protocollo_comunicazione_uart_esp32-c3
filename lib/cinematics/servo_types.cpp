@@ -19,4 +19,7 @@ ServoData servo_data = {
     .max_speed = 5.2f,
     .max_acc = 100.0f,
     .max_jerk = 1500.0f, //to have a fluid movement, the servo should be able to reach the target acceleration in 0.1 seconds, so jerk = acc / 0.1s
+    .moving = std::atomic<bool>(false),
 };
+
+float servo_deadzone = (270.0f/180.0f*M_PI)/(float)(servo_data.sgnl_max_duty-servo_data.sgnl_min_duty)*(float) servo_deadzone_ms;

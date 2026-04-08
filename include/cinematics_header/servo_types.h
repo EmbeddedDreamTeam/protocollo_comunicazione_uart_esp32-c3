@@ -23,8 +23,8 @@ typedef struct {
     int8_t gpio;
     uint32_t sgnl_min_duty;
     uint32_t sgnl_max_duty;
-    // these values ranges from -5/6*PI rads to +5/6*PI corresponding to -150 degrees to +150 degrees,
-    // with a total range of motion of 300 degrees, not ~309 in order to have some margin
+    // these values ranges from (-30.5/36+0.07)*PI rads to (+30.5/36-0.07)*PI corresponding to -139.9 degrees to +139.9 degrees,
+    // with a total range of motion of 279.8 degrees, not ~309 in order to have some margin
     // because if the potentiometer barely exceeds this value, the servo will execute a +360 degrees rotation
     // in order to go back to the setted position
     float min_pos;
@@ -35,11 +35,15 @@ typedef struct {
     float max_speed;
     float max_acc;
     float max_jerk;
+    std::atomic<bool> moving;
 } ServoData;
 //modern C++ style type definition for declaring global variables in the header file without violating the one definition rule, and ensuring type safety
 
 inline constexpr float trim= 0.07f*M_PI;
+inline constexpr float backlash= 15.0f/180.0f*M_PI; //trying to compensate for backlash by n degrees
+inline constexpr int servo_deadzone_ms=2;
 extern ServoData servo_data;
+extern float servo_deadzone;
 
 extern QueueHandle_t xServoQueue; //queue handler
 extern TaskHandle_t xTaskHandle; //task handler

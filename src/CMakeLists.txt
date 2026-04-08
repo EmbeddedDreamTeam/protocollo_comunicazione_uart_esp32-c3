@@ -8,7 +8,10 @@ if(CONFIG_IDF_TARGET_ESP32C3)
         FILE(GLOB_RECURSE app_sources 
             ${CMAKE_SOURCE_DIR}/tests/esp32-c3/cinematics/*.*
             ${CMAKE_SOURCE_DIR}/lib/*.*)
-
+    elseif(C3-ROOT)
+        FILE(GLOB_RECURSE app_sources 
+            ${CMAKE_SOURCE_DIR}/src/esp32-s3/*.* 
+            ${CMAKE_SOURCE_DIR}/lib/*.*)
     else()
         message(STATUS "Building NORMAL ESP32-C3")
 

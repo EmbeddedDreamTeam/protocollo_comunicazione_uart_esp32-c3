@@ -37,11 +37,11 @@ void send_report_to_root(){
   send_msg_to_master(m);
 }
 
-const int PING_SLAVE_WAIT_FOR_ACK_MAX_DELAY = 5000; //! fix: do alle schedine 5s per rispondere ad un hanshake invece che 2s
-const int PING_MASTER_WAIT_FOR_ACK_MAX_DELAY = 5000;
+const int PING_SLAVE_WAIT_FOR_ACK_MAX_DELAY = 500; //! fix: do alle schedine 5s per rispondere ad un hanshake invece che 2s
+const int PING_MASTER_WAIT_FOR_ACK_MAX_DELAY = 500;
 
-const int PING_SLAVE_SEND_NEW_HANDSHAKE_DELAY = 10000;
-const int PING_MASTER_SEND_NEW_HANDSHAKE_DELAY = 10000;
+const int PING_SLAVE_SEND_NEW_HANDSHAKE_DELAY = 500;
+const int PING_MASTER_SEND_NEW_HANDSHAKE_DELAY = 500;
 
 volatile int last_MtS_ack_sender_id = -1;
 volatile bool received_MtS_ack = false;
