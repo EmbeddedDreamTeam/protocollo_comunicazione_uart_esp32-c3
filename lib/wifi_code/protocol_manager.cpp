@@ -18,17 +18,16 @@ static constexpr float MIN_JERK = 000.1;
 static constexpr float MAX_JERK = 1500.0;
 
 
-
+uint8_t s_num_servos = 1;
 
 namespace {
-    static uint8_t               s_num_servos = 1;
     static ServoCommandCallback  s_on_command;
 }
 
 // ---------------------------------------------------------------------------
 // Internal: send a message to the computer via TCP
 // ---------------------------------------------------------------------------
-static void reply(const std::string& msg)
+void reply(const std::string& msg)
 {
     TcpServer::send(msg);
     ESP_LOGI(TAG, "-> Computer: %s", msg.c_str());
