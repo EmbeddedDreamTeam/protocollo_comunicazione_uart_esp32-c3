@@ -12,7 +12,7 @@ static constexpr float ANGLE_MIN    = -139.0;
 static constexpr float ANGLE_MAX    = +139.0;
 
 namespace {
-    static uint8_t               s_num_servos = 0;
+    static uint8_t               s_num_servos = 1;
     static ServoCommandCallback  s_on_command;
 }
 

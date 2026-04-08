@@ -41,9 +41,10 @@ void init_wifi(){
         [](const std::string& line) {               // on_receive
             ProtocolManager::handle_incoming(line);
         },
-        []() {                                       // on_connect
-            ProtocolManager::set_num_servos(1);
-        }
+        nullptr
+        //[]() {                                       // on_connect
+         //   ProtocolManager::set_num_servos(1);
+        //}
     );
 
     ESP_LOGI(TAG, "Pronto! Connettiti alla rete '%s' e usa:", AP_SSID);
