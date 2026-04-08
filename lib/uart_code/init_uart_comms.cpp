@@ -37,8 +37,7 @@ void task_loop_print_ids_array(void* info){
 
 void init_uart_comms(){
   
-  //todo for test
-  
+  //todo for test  
   //!!!ID!!!
   SELF_ID = 0; 
 
