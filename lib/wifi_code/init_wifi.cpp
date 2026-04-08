@@ -53,7 +53,6 @@ void init_wifi(){
         },
         []() {
             reply("SERVOS " + std::to_string(s_num_servos));                                       // on_connect
-            ProtocolManager::set_num_servos(1);
         }
     );
 
