@@ -1,8 +1,9 @@
 """
-ESP32-C3 Servo Controller — Python Client (Smart Optional Parameters)
+ESP32-C3 Servo Controller — Python Client (Fully Dynamic Edition)
 ------------------------------------------
-- Supporta parametri opzionali: Velocità, Accelerazione e Jerk
-- Riconosce automaticamente se si inseriscono parametri globali o specifici
+- Si adatta dinamicamente a QUALSIASI numero di servi.
+- Supporta parametri opzionali: Velocità, Accelerazione e Jerk.
+- Tronca o riempie gli angoli in automatico se la sequenza non matcha i servi fisici.
 """
 
 import socket
@@ -16,9 +17,6 @@ import time
 ESP_HOST = "192.168.4.1"
 ESP_PORT = 3333
 
-# FLAG DI MODALITÀ:
-# True  -> Esegue automaticamente la sequenza e poi si ferma.
-# False -> Entra in modalità manuale e aspetta il tuo input da tastiera.
 AUTO_MODE = False
 
 # Valori di default per ogni movimento
@@ -29,98 +27,86 @@ DEFAULT_JERK = 1500.0
 
 num_servos = None
 
-# Sincronizzazione thread
 ack_event = threading.Event()   
 ready_event = threading.Event() 
 
-# La sequenza di test
-# ORA PUOI SCRIVERE:
-# [0, 0, 0, 0] -> Usa i default
-# [90, 90, 90, 90, 2.5] -> Applica velocità 2.5 a tutti per questo step
-# [45, 45, 45, 45, 5.0, 50, 1000] -> Applica vel 5.0, acc 50, jerk 1000 a tutti
+# Puoi lasciare la sequenza a 4, a 6 o a 2: il codice si adatterà da solo
+# al numero reale di servi connessi scartando gli extra o aggiungendo zeri.
 TARGET_SEQUENCE = [
     [0.0, 0, 0, 0],
-
     [-139, -139, -139, -139],
-    [-139, -139, -139, -139],
-
     [-139, -60, 0, 0],
     [-139, -60, -60, -139],
-    
     [139, -60, -60, 139],
-    
     [139, -90, 139, 139],
     [139, -90, 139, 0],
-    
     [-139, -90, 100, 0],
-    
     [-139, 0, -120, 0],
-    
     [0, 0, 120, 0],
     [0, 0, 120, 139],
-    
     [0, 60, 60, 139],
     [0, 60, 60, -139],
-    
     [139, 60, 139, -139],
     [139, 60, 139, 139],
-    
     [-139, 60, -139, 139],
     [-139, 60, -139, -139],
-    
     [139, 60, 139, -139],
     [139, 60, 139, 139],
-    
     [139, 120, 0, 139],
     [139, 120, 0, 0],
-    
     [-139, 120, 0, 0],
-    
     [-139, 120, 120, 0],
-    
     [-139, 0, 120, 120],
-    
     [-139, 60, -60, 120],
     [-139, 60, -60, -139],
-    
     [139, 60, -60, -139],
-    
     [0, 0, -60, -139],
-
     [0, 0, 0, 0]
 ]
-   
 
 # ---------------------------------------------------------------------------
-# Funzione intelligente di composizione del Payload
+# Funzione intelligente e Adattiva
 # ---------------------------------------------------------------------------
-def build_payload(values: list[float], num_servos: int) -> str | None:
+def build_payload(values: list[float], num_servos: int, is_sequence: bool = False) -> str | None:
     """
-    Costruisce la stringa finale per l'ESP32 interpretando i parametri opzionali.
+    Costruisce la stringa finale scalando su QUALUNQUE numero di servi.
     """
     n = len(values)
     
-    # CASO 1: L'utente ha inserito esattamente tutti i parametri per ogni servo (es: 16 valori per 4 servi)
+    # CASO 1: Dati espliciti per ogni singolo servo (es: N servi -> N * 4 valori)
     if n == num_servos * 4:
         return " ".join(str(v) for v in values)
         
-    # CASO 2: L'utente ha inserito gli angoli + parametri globali opzionali
-    if num_servos <= n <= num_servos + 3:
-        angles = values[:num_servos]
+    # CASO 2: Angoli (+ opzionali globali)
+    # Estraiamo esattamente 'num_servos' angoli dall'input
+    angles = values[:num_servos]
+    
+    # Se l'input ha MENO angoli del numero di servi, riempiamo con 0 (padding)
+    while len(angles) < num_servos:
+        angles.append(0.0)
         
-        # Estrai i parametri globali se forniti, altrimenti usa i default
-        speed = values[num_servos] if n > num_servos else DEFAULT_SPEED
-        acc = values[num_servos + 1] if n > num_servos + 1 else DEFAULT_ACC
-        jerk = values[num_servos + 2] if n > num_servos + 2 else DEFAULT_JERK
+    # Se stiamo leggendo dalla TARGET_SEQUENCE automatica, ignoriamo eventuali numeri 
+    # extra come se fossero velocità/acc (evita bug se hai 3 servi ma la tupla è da 4)
+    if is_sequence:
+        speed, acc, jerk = DEFAULT_SPEED, DEFAULT_ACC, DEFAULT_JERK
+    else:
+        # Modalità Manuale: i numeri che avanzano sono interpretati come Vel, Acc, Jerk
+        extra_params = values[num_servos:] if n > num_servos else []
         
-        parts = []
-        for a in angles:
-            parts.append(f"{a} {speed} {acc} {jerk}")
+        if len(extra_params) > 3:
+            return None # Errore: Troppi numeri inseriti a caso
             
-        return " ".join(parts)
+        speed = extra_params[0] if len(extra_params) > 0 else DEFAULT_SPEED
+        acc   = extra_params[1] if len(extra_params) > 1 else DEFAULT_ACC
+        jerk  = extra_params[2] if len(extra_params) > 2 else DEFAULT_JERK
         
-    # Errore: quantitativo di numeri non riconosciuto
-    return None
+    # Assembliamo i blocchi da 4
+    parts = []
+    for a in angles:
+        parts.append(f"{a} {speed} {acc} {jerk}")
+        
+    return " ".join(parts)
+
 
 # ---------------------------------------------------------------------------
 # Receiver thread
@@ -173,11 +159,10 @@ def run_sequence(sock: socket.socket) -> None:
     
     for step_idx, step_values in enumerate(TARGET_SEQUENCE):
         
-        # Usa la nuova logica intelligente
-        payload = build_payload(step_values, num_servos)
+        # is_sequence=True garantisce che una riga da 4 non "inquini" la velocità di un set a 3 motori
+        payload = build_payload(step_values, num_servos, is_sequence=True)
         
         if payload is None:
-            print(f"[error] Step {step_idx + 1} ha un numero non valido di elementi ({len(step_values)}). Salto.")
             continue
             
         message = payload + "\n"
@@ -202,6 +187,8 @@ def run_sequence(sock: socket.socket) -> None:
 # Main
 # ---------------------------------------------------------------------------
 def main() -> None:
+    global num_servos
+    
     print(f"Connessione all'ESP32 su {ESP_HOST}:{ESP_PORT} ...")
 
     try:
@@ -218,12 +205,16 @@ def main() -> None:
 
     is_ready = ready_event.wait(timeout=5.0)
     
-    if not is_ready:
-        print("[warning] Non ho ricevuto il setup iniziale dall'ESP32, ma provo a continuare lo stesso.")
-        # Se fallisce la lettura iniziale, forziamo num_servos per non bloccare tutto
-        global num_servos
-        if num_servos is None:
-            num_servos = 4 
+    # SE NON RICEVE IL DATO DALL'ESP32, CHIEDE ALL'UTENTE
+    if not is_ready or num_servos is None:
+        print("\n[warning] Non ho ricevuto il setup iniziale dall'ESP32.")
+        while True:
+            try:
+                ans = input("Quanti servi fisici sono collegati? (Inserisci un numero intero) > ")
+                num_servos = int(ans)
+                break
+            except ValueError:
+                print("Per favore inserisci un numero valido.")
 
     # ---------------------------------------------------------
     # DIRAMAZIONE LOGICA BASATA SULLA FLAG
@@ -236,13 +227,13 @@ def main() -> None:
         
     else:
         print("\n=======================================================")
-        print(" MODALITÀ MANUALE ATTIVA")
+        print(f" MODALITÀ MANUALE ATTIVA (Configurato per {num_servos} servi)")
         print(f" Inserisci {num_servos} angoli separati da spazio.")
         print(" Opzionale: aggiungi Vel, Acc e Jerk alla fine per sovrascrivere i default.")
         print(f" Esempi per {num_servos} servi:")
-        print("   Solo angoli:   90 0 45 120")
-        print("   Con Vel:       90 0 45 120 3.5")
-        print("   Con Vel+Acc:   90 0 45 120 3.5 200")
+        print(f"   Solo angoli:   {' '.join(['90'] * num_servos)}")
+        print(f"   Con Vel:       {' '.join(['90'] * num_servos)} 3.5")
+        print(f"   Con Vel+Acc:   {' '.join(['90'] * num_servos)} 3.5 200")
         print(" Scrivi 'quit' per uscire.")
         print("=======================================================\n")
         
@@ -259,19 +250,15 @@ def main() -> None:
                     continue
 
                 try:
-                    # Converte l'input testuale in una lista di float
                     user_values = [float(x) for x in raw.split()]
                 except ValueError:
                     print("[error] Formato non valido. Inserisci solo numeri separati da spazio.")
                     continue
 
-                # Usa la funzione intelligente per validare e formattare
-                payload = build_payload(user_values, num_servos)
+                payload = build_payload(user_values, num_servos, is_sequence=False)
                 
                 if payload is None:
-                    print(f"[error] Hai inserito {len(user_values)} valori. Inseriscine {num_servos} (solo angoli), "
-                          f"{num_servos+1}, {num_servos+2}, {num_servos+3} (parametri globali) "
-                          f"oppure {num_servos*4} (dati completi).")
+                    print(f"[error] Numero errato di parametri. Riprova.")
                     continue
                 
                 message = payload + "\n"
