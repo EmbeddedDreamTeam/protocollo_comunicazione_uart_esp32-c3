@@ -64,6 +64,36 @@ TARGET_SEQUENCE = [
     [0, 0, 0, 0]
 ]
 
+
+# Sequenza di test per la Cinematica: [Angolo1, Angolo2, Angolo3, Angolo4, Vel, Acc, Jerk]
+TARGET_SEQUENCE_2 = [
+    # 1. Reset iniziale: torna a 0 con i valori di default
+    [0, 0, 0, 0],
+
+    # 2. MOVIMENTO LENTO E FLUIDO (Slow Motion)
+    # Va a 120°. Velocità molto bassa, accelera piano, curva morbida.
+    [120, 120, 120, 120, 0.3, 30.0, 100.0],
+
+    # 3. Ritorno a 0 NORMALE 
+    # Usiamo valori medi per avere un termine di paragone
+    [0, 0, 0, 0, 1.5, 60.0, 800.0],
+
+    # 4. MOVIMENTO AGGRESSIVO E SCATTANTE (Limite Hardware)
+    # Va a -120°. Spinge i parametri al MASSIMO consentito dal C++ (5.2, 100, 1500)
+    [-120, -120, -120, -120, 5.2, 100.0, 1500.0],
+
+    # 5. Ritorno a 0 NORMALE
+    [0, 0, 0, 0, 1.5, 60.0, 800.0],
+
+    # 6. EFFETTO "RINCORSA" (Velocità Massima, Accelerazione Minima)
+    # Va a 130°. I motori partono lentissimi ma puntano alla velocità massima (5.2)
+    [130, 130, 130, 130, 5.2, 15.0, 300.0],
+
+    # 7. Ritorno a 0 FINALE ESTREMAMENTE MORBIDO (S-Curve perfetta)
+    # Torna a casa con estrema calma.
+    [0, 0, 0, 0, 0.8, 40.0, 80.0]
+]
+
 # ---------------------------------------------------------------------------
 # Funzione intelligente e Adattiva
 # ---------------------------------------------------------------------------
