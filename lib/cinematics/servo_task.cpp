@@ -45,6 +45,7 @@ void send_movement_ack(){
                 target= max(target - backlash, servo_data.min_pos);
                 backlash_compensation=true;
             }
+            ESP_LOGI("Servo", "New command: target=%.4f, speed=%.3f, acc=%.3f, jerk=%.3f, backlash_comp=%s", target, cmd.speed, cmd.acc, cmd.jerk, backlash_compensation ? "YES" : "NO");
 
             // Clamping parameters 
             const float j = cmd.jerk > 0.0f ? cmd.jerk : servo_data.max_jerk;

@@ -1,4 +1,5 @@
 #include "utils_uart_comms.h"
+#include "esp_log.h"
 using namespace std;
 
 
@@ -34,8 +35,17 @@ void convert_servo_instructions(const std::vector<float>& angles, const std::vec
         p.payload_servo.speed = velocities[i];           // default normalized speed (1.0 = full)
         p.payload_servo.acceleration =  accelerations[i];  // reasonable default
         p.payload_servo.jerk =  jerks[i];         // reasonable default
-
         int target_id = ids_arr[i];
+        ESP_LOGI(
+            "SERVO_API",
+            "target_id=%d, angle=%.2f deg, radians=%.4f, speed=%.3f, acc=%.3f, jerk=%.3f",
+            target_id,
+            angles[i],
+            p.payload_servo.radians,
+            p.payload_servo.speed,
+            p.payload_servo.acceleration,
+            p.payload_servo.jerk
+        );
 
         if (target_id == SELF_ID) {
             // It's for the Root: send to the local servo queue
