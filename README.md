@@ -16,26 +16,27 @@
 
 <div align="justify">
 
-<details>
-<summary><h2>Table of Contents 📖</h2></summary>
+## Table of Contents
 
+<details>
+  
 - [Molecubes - Modular Robotic Arm](#molecubes---modular-robotic-arm)
-  - [Table of Contents](table-of-contents)
-  - [Idea of the project 💡](#idea-of-the-project-)
-  - [Requirements 📋](#requirements-)
-    - [Hardware Requirements 🔧](#hardware-requirements-)
-    - [Software Requirements 💻](#software-requirements-)
-  - [Getting Started 🚀](#getting-started-)
-    - [Setting up the Base Module 🏗️](#setting-up-the-base-module-)
-    - [Setting up the Cube Modules 🧱](#setting-up-the-cube-modules-)
-    - [Setting up Wiring 🔌](#setting-up-wiring-)
-    - [Setting up ESP32 Software 🔨](#setting-up-esp32-software-)
-    - [Setting up Python Communication 🖥️](#setting-up-python-communication-)
-  - [Project Layout 📂](#project-layout-)
-  - [How It Works ⚡](#how-it-works-)
-  - [Usage 🎮](#usage-)
-  - [User guide 📑](#user-guide-)
-  - [License](#license-)
+  - [Table of Contents](#table-of-contents)
+  - [Idea of the project](#idea-of-the-project)
+  - [Requirements](#requirements)
+    - [Hardware Requirements](#hardware-requirements)
+    - [Software Requirements](#software-requirements)
+  - [Getting Started](#getting-started)
+    - [Setting up the Base Module](#setting-up-the-base-module)
+    - [Setting up the Cube Modules](#setting-up-the-cube-modules)
+    - [Setting up Wiring](#setting-up-wiring)
+    - [Setting up ESP32 Software](#setting-up-esp32-software)
+    - [Setting up Python Communication](#setting-up-python-communication)
+  - [Project Layout](#project-layout)
+  - [User guide](#user-guide)
+  - [Team Members](#team-members)
+  - [Resources](#resources)
+  - [License](#license)
 
 </details>
 
@@ -223,7 +224,7 @@ molecubes/
 * **`include/`**: Contains header declarations for the firmware modules in `lib/`.
 * **`python client/`**: Python-side communication tools for controlling the arm.
 
-## User guide 📑
+## User guide
 
 1. **Power Up the Root Module**: Connect power to the root ESP32-C3 module and wait for it to initialize.
 2. **Connect to WiFi**: The root module creates a WiFi access point. Connect your computer to this WiFi network.
@@ -232,7 +233,7 @@ molecubes/
    - **Manual Mode**: Input specific parameters including angles, speed, acceleration, and jerk for precise control. While in manual mode, you can hot-swap cubes and various attachments without interrupting operation.
    - **Auto Mode**: Run predefined sequences that execute automatically, following programmed movement patterns.
 
-## Team Members 👥
+## Team Members 
 
 - **Marco Adami** — `marco.adami@studenti.unitn.it`
   - Major developer of the WiFi connectivity section
@@ -246,7 +247,7 @@ molecubes/
 - **Cesare Roversi** — `cesare.roversi@studenti.unitn.it`
   - Major developer of inter-cube connectivity
 
-## Resources 📚
+## Resources 
 
 - YouTube: https://www.youtube.com/watch?v=YOUR_VIDEO_LINK
 - Presentation: https://www.example.com/presentation-link
