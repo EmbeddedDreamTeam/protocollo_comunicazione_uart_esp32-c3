@@ -1,7 +1,5 @@
 # Molecubes - Modular Robotic Arm
 
-//TODO layout pins 
-
 <div align="center">
 <img src="assets/logo.png" alt="Molecubes Logo">
 </div>
@@ -111,37 +109,90 @@ Each cube module requires the following assembly:
 3. **Attach Magnetic Connectors**: Install the 2 headed pin magnetic connectors on opposite faces of the cube for modular connection.
 4. **Wire the Components**: Connect the servomotor to the appropriate cables for power and signal transmission.
 
-### Setting up Wiring
-
-
----
-
-The wiring process connects the ESP32-S3 base to the cube modules:
-
-1. **Power Supply**: Connect the ESP32-S3 to a stable power source (typically 5V).
-2. **Module Connections**: Use the magnetic connectors to link cube modules together and to the base.
-3. **Signal Cables**: Route signal cables from each servomotor to the ESP32-S3 GPIO pins.
-4. **Communication Setup**: Ensure serial communication lines are properly connected between modules if needed.
-
-### Setting up ESP32 Software 🔨
+### Setting up Wiring 
 
 ---
 
-To program the ESP32-S3, follow these steps:
+The Molecubes system uses a **daisy-chain UART communication topology**:
+- The **base module (ROOT)** is the primary master
+- Each **cube module** acts as both a **SLAVE** to its predecessor and a **MASTER** to the next cube
+- This allows commands to propagate through the chain: ROOT → Cube 1 → Cube 2 → Cube 3, etc.
+
+#### Pin Configuration
+
+```c
+// ROOT Module (Base) - Only acts as MASTER
+#define U_WITH_MASTER 0
+#define FROM_MASTER_RX 10    // Receive data from Cube 1 on pin 10
+#define TO_MASTER_TX 9       // Transmit data to Cube 1 on pin 9
+
+// CUBE Module - Acts as both SLAVE and MASTER
+// SLAVE Configuration (receives from previous module)
+#define U_WITH_SLAVE 1
+#define FROM_SLAVE_RX 2      // Receive data from previous module on pin 2
+#define TO_SLAVE_TX 3        // Transmit data to previous module on pin 3
+
+// MASTER Configuration (transmits to next module)
+#define FROM_MASTER_RX 10    // Receive data from next cube on pin 10
+#define TO_MASTER_TX 9       // Transmit data to next cube on pin 9
+```
+
+#### Communication Chain Diagram
+
+```
+Root (Master Only)
+       ↓↑ (pins 9,10)
+    Cube 1 (Slave ↓, Master ↑)
+       ↓↑ (pins 3,2) ← (pins 9,10)
+    Cube 2 (Slave ↓, Master ↑)
+       ↓↑ (pins 3,2) ← (pins 9,10)
+    Cube 3 (Slave ↓, Master ↑)
+```
+
+#### Wiring Steps
+
+1. **Power Supply**: 
+   - Connect the ESP32-C3 base to a stable power source (5V).
+   - Ensure each cube module receives proper power through the magnetic connectors.
+   - Do not power more than one cube via USB simultaneously to avoid power supply issues.
+
+2. **Root Module (BASE) UART Connections**:
+   - Pin 10 (FROM_MASTER_RX): Receives serial data from Cube 1's TO_SLAVE_TX
+   - Pin 9 (TO_MASTER_TX): Transmits serial data to Cube 1's FROM_SLAVE_RX
+
+3. **Cube Module UART Connections** (as Slave to previous module):
+   - Pin 2 (FROM_SLAVE_RX): Receives serial data from the previous module (chained)
+   - Pin 3 (TO_SLAVE_TX): Transmits serial data to the previous module (chained)
+
+4. **Cube Module UART Connections** (as Master to next module):
+   - Pin 10 (FROM_MASTER_RX): Receives serial data from the next cube (if connected)
+   - Pin 9 (TO_MASTER_TX): Transmits serial data to the next cube (if connected)
+
+5. **Module Connections**: 
+   - Use the magnetic connectors to link cube modules in series to the base.
+   - Connection pattern: Root TX (pin 9) → Cube 1 RX (pin 2), Root RX (pin 10) ← Cube 1 TX (pin 3)
+   - Each subsequent cube follows the same pattern: Cube N TX (pin 3) → Cube N+1 RX (pin 2), Cube N RX (pin 10) ← Cube N+1 TX (pin 9)
+
+6. **Servomotor Signal Cables**: 
+   - Route signal cables from each servomotor to the appropriate GPIO pins on the ESP32-C3.
+   - Ensure proper power delivery to servomotors through dedicated power lines.
+
+### Setting up ESP32 Software 
+
+---
+
+To program the ESP32-C3, follow these steps:
 
 1. **Install PlatformIO IDE**
    - Download and install PlatformIO IDE from the official website: [PlatformIO Download](https://platformio.org/platformio-ide).
    - Open the project in PlatformIO.
 
-2. **Configure the Project**
-   - Ensure the `platformio.ini` file is properly configured for ESP32-S3.
-   - Install necessary libraries (e.g., servo control libraries).
+2. **Build and Upload**
+   - For the base module, upload the `esp32-c3-root` configuration.
+   - For cube modules, upload the `esp32-c3-devkitm-1` configuration.
 
-3. **Build and Upload**
-   - Build the project using PlatformIO.
-   - Upload the firmware to the ESP32-S3 board.
 
-#### Project Layout 📂
+#### Project Layout 
 
 ```
 molecubes/
@@ -160,15 +211,17 @@ molecubes/
 ```
 
 * **`platformio.ini`**: Configuration file for PlatformIO build system.
-* **`src/main.cpp`**: Main firmware for ESP32-S3 controlling the modular arm.
-* **`python_client/`**: Contains Python scripts for communication with the ESP32.
+* **`src/main.cpp`**: Main firmware for ESP32-C3 controlling the modular arm.
+* **`python_client/`**: Contains Python scripts for communication with the ESP32-C3.
 
-#### How It Works ⚡
+#### How It Works 
 
-1. **Initialization**: The ESP32-S3 initializes the system and sets up communication interfaces.
-2. **Motor Control**: Each cube module's servomotor receives commands to achieve specific twisting motions.
-3. **Modular Movement**: The unique twisting approach allows for complex arm configurations and positions.
-4. **Python Communication**: External Python scripts send commands to the ESP32 for arm control and monitoring.
+1. **Root Initialization**: The root ESP32-C3 (in the base module) initializes the system and sets up UART master communication.
+2. **Daisy-Chain Communication**: Each cube module receives commands from its predecessor and can forward them to the next cube in the chain.
+3. **Dual UART Role**: Each cube operates with two UART interfaces - one as a slave (listening to the previous module) and one as a master (sending to the next module).
+4. **Motor Control**: Each cube module's servomotor receives commands to achieve specific twisting motions.
+5. **Modular Movement**: The unique twisting approach allows for complex arm configurations and positions.
+6. **Python Communication**: External Python scripts send commands to the root ESP32-C3 for arm control and monitoring.
 
 #### Usage 🎮
 
