@@ -46,7 +46,7 @@
 ---
 <!--=========================================================================-->
 
-The main idea of the Molecubes project is to build a modular robotic arm that utilizes a unique approach to movement through motor twisting. This design provides significantly more freedom of movement, allowing the arm to achieve various positions with different twists. The arm consists of interconnected cubes, each containing a servomotor, connected via magnetic connectors for easy assembly and reconfiguration.
+The main idea of the Molecubes project is to build a modular robotic arm that utilizes a unique approach to movement through motor twisting. This design provides significantly more freedom of movement, allowing the arm to achieve various positions with different twists. The arm consists of interconnected cubes, each containing a servomotor, connected via magnetic connectors for easy assembly and reconfiguration.Thanks to the modular nature of the arm we can make use of differents attachment and cube layout that best suites a precise situation. 
 
 The system is controlled by an ESP32-S3 microcontroller in the base module, with communication handled through Python scripts for user interaction and control.
 
