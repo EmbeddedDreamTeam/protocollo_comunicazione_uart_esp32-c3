@@ -197,24 +197,33 @@ To program the ESP32-C3, follow these steps:
 molecubes/
 ├── platformio.ini                    # PlatformIO configuration
 ├── src/
-│   ├── main.cpp                      # Main ESP32 firmware
-│   └── ...
+│   ├── CMakeLists.txt                # Build configuration for ESP32 targets
+│   ├── esp32-c3/
+│   │   └── main.cpp                  # Root firmware for ESP32-C3 base module
+│   └── esp32-s3/
+│       └── main.cpp                  # Optional ESP32-S3 target firmware
 ├── lib/
-│   └── ...                           # Additional libraries
+│   ├── cinematics/                   # Kinematic control and motion helpers
+│   ├── uart_code/                    # UART communication and command handling
+│   └── wifi_code/                    # WiFi initialization and network management
 ├── include/
-│   └── ...                           # Header files
-├── python_client/
+│   ├── cinematics_header/            # Servo and motion headers
+│   ├── uart_headers/                 # UART and protocol headers
+│   └── wifi_headers/                 # WiFi and TCP server headers
+├── python client/
 │   ├── esp32_client.py               # Python communication script
 │   └── requirements.txt              # Python dependencies
-└── README.md                         # This file
+├── esp32-c3/                         # ESP32-C3-specific board configuration files
+├── esp32-s3/                         # ESP32-S3 board configuration defaults
 ```
 
-* **`platformio.ini`**: Configuration file for PlatformIO build system.
-* **`src/main.cpp`**: Main firmware for ESP32-C3 controlling the modular arm.
-* **`python_client/`**: Contains Python scripts for communication with the ESP32-C3.
+* **`platformio.ini`**: Project configuration for PlatformIO and build environments.
+* **`src/esp32-c3/main.cpp`**: Main firmware for the ESP32-C3 base/root module.
+* **`lib/`**: Contains source implementation for kinematics, UART, and WiFi modules.
+* **`include/`**: Contains header declarations for the firmware modules in `lib/`.
+* **`python client/`**: Python-side communication tools for controlling the arm.
 
 ## User guide 📑
-
 
 1. **Power Up the Root Module**: Connect power to the root ESP32-C3 module and wait for it to initialize.
 2. **Connect to WiFi**: The root module creates a WiFi access point. Connect your computer to this WiFi network.
@@ -223,7 +232,24 @@ molecubes/
    - **Manual Mode**: Input specific parameters including angles, speed, acceleration, and jerk for precise control. While in manual mode, you can hot-swap cubes and various attachments without interrupting operation.
    - **Auto Mode**: Run predefined sequences that execute automatically, following programmed movement patterns.
 
+## Team Members 👥
 
+- **Marco Adami** — `marco.adami@studenti.unitn.it`
+  - Major developer of the WiFi connectivity section
+- **Matteo Ballardin** — `matteo.ballardin@studenti.unitn.it`
+  - Minor developer of the WiFi connectivity section
+  - Minor developer of kinematics controls
+- **Mattia Pistollato** — `mattia.pistollato@studenti.unitn.it`
+  - 3D modelling of the cubes
+  - Hand construction of the cubes
+  - Major developer of kinematics controls
+- **Cesare Roversi** — `cesare.roversi@studenti.unitn.it`
+  - Major developer of inter-cube connectivity
+
+## Resources 📚
+
+- YouTube: https://www.youtube.com/watch?v=YOUR_VIDEO_LINK
+- Presentation: https://www.example.com/presentation-link
 
 ## License
 
