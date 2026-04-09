@@ -8,13 +8,10 @@
 
 <div align="center">
 
-  ![License](https://img.shields.io/github/license/yourusername/molecubes?style=for-the-badge&logoSize=auto&labelColor=blue&color=black)  ![Version](https://img.shields.io/badge/Pre-RELEASE?style=for-the-badge&logoSize=auto&label=Molecubes%20version&labelColor=white&color=black)  ![Stars](https://img.shields.io/github/stars/yourusername/molecubes?style=for-the-badge&logo=github&logoColor=black&logoSize=auto&labelColor=gold&color=black)  ![Contributors](https://img.shields.io/github/contributors/yourusername/molecubes?style=for-the-badge&logo=github&logoColor=white&logoSize=auto&label=contributors&labelColor=green&color=black)  ![Issues](https://img.shields.io/github/issues/yourusername/molecubes?style=for-the-badge&logoSize=auto&label=Issues&labelColor=red&color=black)  ![Repo Size](https://img.shields.io/github/repo-size/yourusername/molecubes?style=for-the-badge&labelColor=purple&color=black)  
-
+  ![License](https://img.shields.io/github/license/EmbeddedDreamTeam/molecubes?style=for-the-badge&logoSize=auto&labelColor=blue&color=black)  ![Version](https://img.shields.io/badge/Pre-RELEASE?style=for-the-badge&logoSize=auto&label=Molecubes%20version&labelColor=white&color=black)  ![Stars](https://img.shields.io/github/stars/EmbeddedDreamTeam/molecubes?style=for-the-badge&logo=github&logoColor=black&logoSize=auto&labelColor=gold&color=black)  ![Contributors](https://img.shields.io/github/contributors/EmbeddedDreamTeam/molecubes?style=for-the-badge&logo=github&logoColor=white&logoSize=auto&label=contributors&labelColor=green&color=black)  ![Issues](https://img.shields.io/github/issues/EmbeddedDreamTeam/molecubes?style=for-the-badge&logoSize=auto&label=Issues&labelColor=red&color=black) 
 </div>
 
 ---
-
-<div align="justify">
 
 ## Table of Contents
 
@@ -42,15 +39,14 @@
 
 ## Idea of the project 
 
----
+
 
 The main idea of the Molecubes project is to build a modular robotic arm that utilizes a unique approach to movement through motor twisting. This design provides significantly more freedom of movement, allowing the arm to achieve various positions with different twists. The arm consists of interconnected cubes, each containing a servomotor, connected via magnetic connectors for easy assembly and reconfiguration.Thanks to the modular nature of the arm we can make use of differents attachment and cube layout that best suites a precise situation. 
 
-The system is controlled by an ESP32-S3 microcontroller in the base module, with communication handled through Python scripts for user interaction and control.
+The system is controlled by an ESP32-C3 microcontroller in the base module, with communication handled through Python scripts for user interaction and control.
 
 ## Requirements 
 
----
 
 ### Hardware Requirements 
 
