@@ -27,32 +27,29 @@ static void wifi_event_handler(void* arg, esp_event_base_t event_base,
 
 void WifiManager::init_ap(const std::string& ssid, const std::string& password)
 {
-    // [SPIEGAZIONE] NVS (Non-Volatile Storage) è richiesto dal driver Wi-Fi per 
-    // salvare i dati di calibrazione radio. Se è corrotto, viene formattato e reinizializzato.
+    // Initialize NVS (Non-Volatile Storage) required by the Wi-Fi driver for radio calibration data
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {
         nvs_flash_erase();
         nvs_flash_init();
     }
 
-    // [SPIEGAZIONE] Inizializza lwIP (lo stack TCP/IP) e crea l'interfaccia virtuale 
-    // per l'Access Point, che di default assegnerà all'ESP32 l'IP 192.168.4.1.
+    // Initialize the TCP/IP stack (lwIP) and create the virtual interface for the Access Point
     ESP_ERROR_CHECK(esp_netif_init());
     
-    // [SPIEGAZIONE] Crea il ciclo di eventi di sistema. L'ESP-IDF è "event-driven",
-    // qui verranno instradati eventi come "Client connesso" o "Disconnesso".
+    // Create the system event loop to handle events like client connections/disconnections
     ESP_ERROR_CHECK(esp_event_loop_create_default());
     esp_netif_create_default_wifi_ap();
 
-    // Inizializza driver Wi-Fi con config di default
+    // Initialize Wi-Fi driver with default configuration
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
 
-    // Registra event handler
+    // Register an event handler to log when a computer (STA) connects or disconnects
     ESP_ERROR_CHECK(esp_event_handler_instance_register(
         WIFI_EVENT, ESP_EVENT_ANY_ID, wifi_event_handler, nullptr, nullptr));
 
-    // Configura Access Point
+    // Configure Access Point parameters: SSID, Password, and maximum allowed connections
     wifi_config_t ap_config = {};
     strncpy(reinterpret_cast<char*>(ap_config.ap.ssid),
             ssid.c_str(), sizeof(ap_config.ap.ssid));
@@ -67,6 +64,7 @@ void WifiManager::init_ap(const std::string& ssid, const std::string& password)
         ap_config.ap.authmode = WIFI_AUTH_WPA2_PSK;
     }
 
+    // Set Wi-Fi mode to Access Point and start the radio
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
     ESP_ERROR_CHECK(esp_wifi_start());

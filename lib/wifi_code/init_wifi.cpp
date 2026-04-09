@@ -21,10 +21,10 @@ static constexpr uint16_t TCP_PORT      = 3333;
 void init_wifi(){
     ESP_LOGI(TAG, "Avvio ESP32-C3 Wi-Fi TCP...");
 
-    // 2. Avvia Access Point Wi-Fi
+    // Start the Access Point
     WifiManager::init_ap(AP_SSID, AP_PASSWORD);
 
-    // 3. Inizializza protocollo — invia "SERVOS 1" al computer alla connessione
+    // Initialize the protocol and define what to do with the received motor data
     ProtocolManager::init(1, [](const std::vector<float>& angles, 
                                 const std::vector<float>& velocities, 
                                 const std::vector<float>& accelerations, 
@@ -37,21 +37,18 @@ void init_wifi(){
                      i, angles[i], velocities[i], accelerations[i], jerks[i]);
         }
 
-        // CHIAMATA AL BRIDGE: Questo invia i messaggi via UART/Coda Locale
-        // ATTENZIONE: Ricordati di aggiornare anche la funzione convert_servo_instructions
-        // affinché accetti i nuovi parametri!
+        // Forward parsed instructions to the UART bridge for physical motor control
         convert_servo_instructions(angles, velocities, accelerations, jerks);
     });
 
-    // 4. Avvia TCP server — invia SERVOS appena il computer si connette
-    // [SPIEGAZIONE] Funzione Lambda (la parte [ ](const std::string& line) { ... } ).
-    // Viene passata come parametro al server TCP. Il server la invocherà ("callback")
-    // solamente quando riceve una stringa completa di 'a-capo' dal Mac.
+    // Start the TCP server and define the connection behavior
     TcpServer::start(TCP_PORT,
         [](const std::string& line) {               // on_receive
+            // Route raw TCP strings to the protocol parser
             ProtocolManager::handle_incoming(line);
         },
         []() {
+            // Automatically send the peripheral count to the computer upon connection
             reply("SERVOS " + std::to_string(s_num_servos));                                       // on_connect
         }
     );

@@ -24,9 +24,10 @@ namespace {
     // Task FreeRTOS: accept loop + ricezione dati
     static void tcp_server_task(void* arg)
     {
+        
         auto port = static_cast<uint16_t>(reinterpret_cast<uintptr_t>(arg));
 
-        // Crea socket di ascolto
+        // Create a streaming socket using the IPv4 TCP protocol
         int listen_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
         if (listen_sock < 0) {
             ESP_LOGE(TAG, "Errore creazione socket: errno %d", errno);
@@ -43,6 +44,7 @@ namespace {
         addr.sin_addr.s_addr = INADDR_ANY;
         addr.sin_port        = htons(port);
 
+        // Bind the socket to the static IP 192.168.4.1 and the specified port
         if (bind(listen_sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) < 0) {
             ESP_LOGE(TAG, "Bind fallita: errno %d", errno);
             close(listen_sock);
@@ -50,13 +52,15 @@ namespace {
             return;
         }
 
+        // Put the socket in listening mode to accept incoming connection requests
         listen(listen_sock, 1);
-        ESP_LOGI(TAG, "In ascolto su 192.168.4.1:%d ...", port);
+        ESP_LOGI(TAG, "Listening on 192.168.4.1:%d ...", port);
 
         while (true) {
             // Aspetta una connessione dal Mac
             sockaddr_in client_addr = {};
             socklen_t   client_len  = sizeof(client_addr);
+            // Block execution until a client (computer) connects
             s_client_sock = accept(listen_sock,
                                    reinterpret_cast<sockaddr*>(&client_addr),
                                    &client_len);
@@ -69,21 +73,23 @@ namespace {
             ESP_LOGI(TAG, "Mac connesso — IP: %s",
                      inet_ntoa(client_addr.sin_addr));
 
-            // Notifica l'applicazione — qui il socket è già pronto a inviare
+            // Notify the application that the computer has successfully connected
             if (s_on_connect) s_on_connect();
 
-            // Ricezione dati: accumula righe terminate da '\n'
+            // Riceive data: accumulate string with '\n' termination 
             char        buf[BUF_SIZE];
             std::string line_buf;
 
             while (true) {
+                // Read incoming data from the socket into the buffer
                 int len = recv(s_client_sock, buf, sizeof(buf) - 1, 0);
                 if (len <= 0) {
-                    // Connessione chiusa o errore
-                    ESP_LOGI(TAG, "Mac disconnesso");
+                    // Connession close or error
+                    ESP_LOGI(TAG, "Mac disconected");
                     break;
                 }
 
+                // Process the buffer character by character to detect newlines ('\n')
                 for (int i = 0; i < len; i++) {
                     char c = buf[i];
                     if (c == '\n') {
@@ -91,6 +97,7 @@ namespace {
                             line_buf.pop_back();
                         }
                         if (!line_buf.empty() && s_on_receive) {
+                            // When a full line is received, trigger the receive callback
                             s_on_receive(line_buf);
                         }
                         line_buf.clear();

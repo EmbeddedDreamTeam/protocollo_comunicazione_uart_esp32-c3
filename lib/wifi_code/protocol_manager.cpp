@@ -47,9 +47,10 @@ void ProtocolManager::init(uint8_t num_servos, ServoCommandCallback on_servo_com
 
 void ProtocolManager::set_num_servos(uint8_t num_servos) //!HERE
 {
+    
     s_num_servos = num_servos;
 
-    // Notify the computer immediately
+    // Notify the computer immediately about the updated number of connected peripherals
     reply("SERVOS " + std::to_string(s_num_servos));
     ESP_LOGI(TAG, "Periferiche collegate: %d", s_num_servos);
 }
@@ -65,6 +66,7 @@ void ProtocolManager::handle_incoming(const std::string& line)
     std::vector<float> accelerations;
     std::vector<float> jerks;
 
+    // Use a stream to parse the space-separated values received from the computer
     std::istringstream stream(line);
     std::string token;
     
@@ -72,15 +74,16 @@ void ProtocolManager::handle_incoming(const std::string& line)
 
     while (stream >> token) {
         char* endptr = nullptr;
+        // Parse strings to floats and validate the physical limits of the motors
         float value = std::strtof(token.c_str(), &endptr);
         
-        // Controllo validità formato numero (exception-free)
+        // Check number format (exception-free)
         if (endptr == token.c_str() || *endptr != '\0') {
             reply("ERROR invalid_format — expected numbers separated by spaces");
             return;
         }
 
-        // Determiniamo quale parametro stiamo leggendo (0=angolo, 1=vel, 2=acc, 3=jerk)
+        // Group parameters into packets of 4: Angle, Speed, Acceleration, Jerk
         int param_type = token_count % 4;
 
         if (param_type == 0) { // ANGOLO
@@ -125,29 +128,29 @@ void ProtocolManager::handle_incoming(const std::string& line)
         token_count++;
     }
 
-    // 1. Controllo che la stringa non fosse vuota
+    // 1. Check if the string is not empty
     if (token_count == 0) {
         reply("ERROR empty_command — send values as: angle vel acc jerk ...");
         return;
     }
 
-    // 2. Controllo che i valori siano arrivati in pacchetti completi da 4
+    // 2. Check if the values are coming in complete packets of four
     if (token_count % 4 != 0) {
         reply("ERROR incomplete_data — each servo requires exactly 4 parameters (angle, speed, acc, jerk)");
         return;
     }
 
-    // 3. Controllo che il numero di "gruppi" corrisponda al numero di servi connessi
+    //3. Verify that the number of received command groups matches the current peripheral count
     if (angles.size() != s_num_servos) {
         reply("ERROR wrong_count — expected data for " + std::to_string(s_num_servos) + 
               " servos, but received data for " + std::to_string(angles.size()));
         return;
     }
 
-    // Tutto OK — invochiamo la callback
+    // OK — callback
     reply("OK");
     
-    // ATTENZIONE: Ora devi passare tutti e 4 i vettori alla callback!
+    // ATTENZIONE: Now you have to pass all the four parameters to callback
     if (s_on_command) {
         s_on_command(angles, velocities, accelerations, jerks);
     }
