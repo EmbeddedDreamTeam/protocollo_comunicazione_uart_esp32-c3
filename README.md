@@ -53,7 +53,6 @@ The system is controlled by an ESP32-S3 microcontroller in the base module, with
 ## Requirements 
 
 ---
-<!--=========================================================================-->
 
 ### Hardware Requirements 
 
@@ -214,45 +213,17 @@ molecubes/
 * **`src/main.cpp`**: Main firmware for ESP32-C3 controlling the modular arm.
 * **`python_client/`**: Contains Python scripts for communication with the ESP32-C3.
 
-#### How It Works 
-
-1. **Root Initialization**: The root ESP32-C3 (in the base module) initializes the system and sets up UART master communication.
-2. **Daisy-Chain Communication**: Each cube module receives commands from its predecessor and can forward them to the next cube in the chain.
-3. **Dual UART Role**: Each cube operates with two UART interfaces - one as a slave (listening to the previous module) and one as a master (sending to the next module).
-4. **Motor Control**: Each cube module's servomotor receives commands to achieve specific twisting motions.
-5. **Modular Movement**: The unique twisting approach allows for complex arm configurations and positions.
-6. **Python Communication**: External Python scripts send commands to the root ESP32-C3 for arm control and monitoring.
-
-#### Usage 🎮
-
-1. **Hardware Assembly**: Assemble the base and cube modules as described.
-2. **Firmware Upload**: Upload the ESP32 firmware using PlatformIO.
-3. **Python Control**: Run the Python client script to communicate with and control the robotic arm.
-4. **Testing Movement**: Send commands to test the modular arm's twisting capabilities and freedom of movement.
-
 ## User guide 📑
 
----
 
-<!--=========================================================================-->
+1. **Power Up the Root Module**: Connect power to the root ESP32-C3 module and wait for it to initialize.
+2. **Connect to WiFi**: The root module creates a WiFi access point. Connect your computer to this WiFi network.
+3. **Start Python Script**: Run the Python client script (`esp32_client.py`) to establish a connection with the root module.
+4. **Control Modes**:
+   - **Manual Mode**: Input specific parameters including angles, speed, acceleration, and jerk for precise control. While in manual mode, you can hot-swap cubes and various attachments without interrupting operation.
+   - **Auto Mode**: Run predefined sequences that execute automatically, following programmed movement patterns.
 
-### Basic Operation
 
-1. **Power On**: Ensure all modules are powered and connected.
-2. **Run Python Client**: Execute the Python script to establish communication.
-3. **Send Commands**: Use the Python interface to send movement commands to the arm.
-4. **Monitor Response**: Observe the arm's twisting motions and position changes.
-
-### Advanced Features
-
-- **Modular Reconfiguration**: Disconnect and reconnect cubes using magnetic connectors for different arm configurations.
-- **Custom Movements**: Program specific twisting sequences for complex tasks.
-
-### Troubleshooting
-
-- Check cable connections if modules don't respond.
-- Verify power supply stability.
-- Ensure proper magnetic connector alignment for reliable connections.
 
 ## License
 
