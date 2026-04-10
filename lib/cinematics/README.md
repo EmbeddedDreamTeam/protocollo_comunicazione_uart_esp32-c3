@@ -70,4 +70,3 @@ float decel_distance_sim(float v,float a,float A,float J,float Vmax){
 - Documentare formalmente l'ownership dei `Msg*` (chi crea, chi invia, chi dealloca) per evitare regressioni.
 
 ---
-Se vuoi, posso aggiungere questo file al repository (`lib/cinematics/README.md`) ora (lo sto creando), o adattarlo in inglese o con ulteriori dettagli tecnici.
